@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Helvetica Neue', Arial, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --font-accent: "Space Grotesk", sans-serif;
+}
+
+@layer base {
+  body {
+    @apply min-h-screen text-[#f8fafc] font-sans;
+    background: radial-gradient(circle at top left, #1e293b, #0f172a);
+    margin: 0;
+    padding: 0;
+  }
+}
+
+@layer components {
+  .glass {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+
+  .clay-card {
+    border-radius: 24px;
+    box-shadow: 
+      12px 12px 24px rgba(0,0,0,0.4),
+      inset -6px -6px 12px rgba(0,0,0,0.3),
+      inset 6px 6px 12px rgba(255,255,255,0.1);
+    @apply transition-all duration-300;
+  }
+
+  .clay-card:hover {
+    @apply -translate-y-1 scale-[1.01];
+    box-shadow: 
+      16px 16px 32px rgba(0,0,0,0.5),
+      inset -8px -8px 16px rgba(0,0,0,0.4),
+      inset 8px 8px 16px rgba(255,255,255,0.15);
+  }
+
+  .clay-button {
+    @apply flex items-center justify-center rounded-2xl px-6 py-3 font-bold transition-all active:scale-95 disabled:grayscale disabled:opacity-50 text-white uppercase tracking-wider;
+    box-shadow: 
+      8px 8px 16px rgba(0,0,0,0.2), 
+      inset -4px -4px 8px rgba(0,0,0,0.3), 
+      inset 4px 4px 8px rgba(255,255,255,0.4);
+  }
+
+  .clay-input {
+    background: rgba(255,255,255,0.05);
+    border: none;
+    border-radius: 12px;
+    box-shadow: 
+      inset 4px 4px 8px rgba(0,0,0,0.5), 
+      inset -4px -4px 8px rgba(255,255,255,0.05);
+    @apply text-white px-4 py-3 outline-none focus:ring-1 focus:ring-white/20 transition-all;
+  }
+}
