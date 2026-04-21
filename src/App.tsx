@@ -23,7 +23,8 @@ import {
   Book,
   Shield,
   ClipboardList,
-  RotateCcw
+  RotateCcw,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
@@ -68,11 +69,11 @@ const MAZO_B = [
 ];
 
 const RANKS = [
-  { level: 1, name: "Aprendiz", minXP: 0 },
-  { level: 2, name: "Operador de Bitácora", minXP: 150 },
-  { level: 3, name: "Técnico Ético", minXP: 400 },
-  { level: 4, name: "Maestro Humanista", minXP: 800 },
-  { level: 5, name: "Filósofo de la Máquina", minXP: 1500 }
+  { level: 1, name: "Aprendiz", minXP: 0, maxXP: 150 },
+  { level: 2, name: "Operador", minXP: 151, maxXP: 400 },
+  { level: 3, name: "Maestro", minXP: 401, maxXP: 800 },
+  { level: 4, name: "Gran Maestro", minXP: 801, maxXP: 1500 },
+  { level: 5, name: "Leyenda Técnica", minXP: 1501, maxXP: 9999 }
 ];
 
 const INSIGNIAS = {
@@ -92,11 +93,36 @@ const ACTIVITIES = [
 ];
 
 const QUIZ_QUESTIONS = [
-  { q: "¿En qué mineral se enfocaba la mina de Lota en el siglo XIX?", options: ["Salitre", "Carbón", "Cobre"], correct: 1 },
-  { q: "¿Qué representa la 'máquina' en el contexto de Baldomero Lillo?", options: ["Un aliado del hombre", "Un mecanismo que devora la humanidad", "Una herramienta de liberación"], correct: 1 },
-  { q: "Según Chevalier, ¿qué simboliza 'el engranaje'?", options: ["La perfección divina", "La fatalidad y la pérdida de voluntad", "El progreso infinito"], correct: 1 },
-  { q: "¿Cómo termina el protagonista Isidoro en el relato?", options: ["Huyendo de la mina", "Vencido por la fatiga y el hambre", "Muriendo en un accidente"], correct: 1 },
-  { q: "¿Qué simboliza 'La Sangre' en la obra literaria?", options: ["Violencia innecesaria", "El vínculo vital y sacrificio del obrero", "Un desperdicio técnico"], correct: 1 }
+  { 
+    q: "¿En qué mineral se enfocaba la mina de Lota en el siglo XIX?", 
+    options: ["Salitre", "Carbón", "Cobre"], 
+    correct: 1,
+    feedback: "La mina de Lota (escenario de 'Subterra') extraía carbón, combustible central para la industrialización sin compasión."
+  },
+  { 
+    q: "¿Qué representa la 'máquina' en el contexto de Baldomero Lillo?", 
+    options: ["Un aliado del hombre", "Un mecanismo que devora la humanidad", "Una herramienta de liberación"], 
+    correct: 1,
+    feedback: "Para Lillo, la máquina industrial no es emancipadora; representa un sistema implacable que consume la vida del obrero."
+  },
+  { 
+    q: "Según Chevalier, ¿qué simboliza 'el engranaje'?", 
+    options: ["La perfección divina", "La fatalidad y la pérdida de voluntad", "El progreso infinito"], 
+    correct: 1,
+    feedback: "El engranaje arrastra a quien lo toca, simbolizando un estado de fatalidad donde el trabajador pierde su voluntad."
+  },
+  { 
+    q: "¿Cómo termina el protagonista en el relato 'El alma de la máquina'?", 
+    options: ["Huyendo de la mina", "Vencido por la fatiga y el hambre", "Muriendo en un accidente"], 
+    correct: 2,
+    feedback: "En el relato de Lillo, la alienación y el desgaste físico llevan al colapso final del trabajador entre la maquinaria."
+  },
+  { 
+    q: "¿Qué simboliza 'La Sangre' en la perspectiva crítica de la obra?", 
+    options: ["Violencia innecesaria", "El vínculo vital y sacrificio del obrero", "Un desperdicio técnico"], 
+    correct: 1,
+    feedback: "La sangre simboliza el sacrificio humano extremo: la energía vital robada para alimentar a la máquina inerte."
+  }
 ];
 
 interface UserData {
@@ -105,6 +131,7 @@ interface UserData {
   puntos: number;
   nivel: number;
   badges: string[];
+  usedConcepts?: string[];
 }
 
 interface EvaluationResult {
@@ -125,13 +152,27 @@ export default function App() {
   const [isDebateDone, setIsDebateDone] = useState(false);
   const [isGlossaryDone, setIsGlossaryDone] = useState(false);
   const [answeredQuiz, setAnsweredQuiz] = useState<number[]>([]);
-  const [checklist, setChecklist] = useState<number[]>([]);
+  const [checklist, setChecklist] = useState<number[]>(() => {
+    try {
+      const saved = localStorage.getItem('forja_checklist');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  
+  useEffect(() => {
+    localStorage.setItem('forja_checklist', JSON.stringify(checklist));
+  }, [checklist]);
   
   const [cards, setCards] = useState<{ a: typeof MAZO_A[0] | null, b: typeof MAZO_B[0] | null }>({ a: null, b: null });
   const [essay, setEssay] = useState('');
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
   
   const [isEvaluating, setIsEvaluating] = useState(false);
+  const [showRestartModal, setShowRestartModal] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
   const evaluationRef = useRef<HTMLDivElement>(null);
   const pdfRef = useRef<HTMLDivElement>(null);
 
@@ -150,11 +191,13 @@ export default function App() {
     const saved = localStorage.getItem('bitacora_user_v4');
     if (saved) {
       const parsed = JSON.parse(saved);
+      if (!parsed.usedConcepts) parsed.usedConcepts = [];
       setUser(parsed);
     }
   }, []);
 
   const saveToLocal = (data: UserData) => {
+    if (!data.usedConcepts) data.usedConcepts = [];
     localStorage.setItem('bitacora_user_v4', JSON.stringify(data));
     setUser(data);
   };
@@ -166,7 +209,8 @@ export default function App() {
       avatar: tempAvatar,
       puntos: 0,
       nivel: 1,
-      badges: []
+      badges: [],
+      usedConcepts: []
     };
     saveToLocal(newUser);
     confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
@@ -253,16 +297,21 @@ export default function App() {
         const newPuntos = user.puntos + pts;
         const newRank = [...RANKS].reverse().find(r => newPuntos >= r.minXP) || RANKS[0];
         const newBadges = [...user.badges];
+        const newUsedConcepts = [...(user.usedConcepts || [])];
         
         if (pts > 140 && !newBadges.includes("CRITICO")) newBadges.push("CRITICO");
         if (wordCount > 120 && !newBadges.includes("NARRADOR")) newBadges.push("NARRADOR");
         if (hasEthics && pts > 120 && !newBadges.includes("ETICO")) newBadges.push("ETICO");
+        
+        if (hasMechanic && !newUsedConcepts.includes(cards.a!.nombre)) newUsedConcepts.push(cards.a!.nombre);
+        if (hasSymbol && !newUsedConcepts.includes(cards.b!.nombre)) newUsedConcepts.push(cards.b!.nombre);
 
         saveToLocal({
           ...user,
           puntos: newPuntos,
           nivel: newRank.level,
-          badges: newBadges
+          badges: newBadges,
+          usedConcepts: newUsedConcepts
         });
       }
 
@@ -389,6 +438,127 @@ export default function App() {
     <div className="max-w-6xl mx-auto space-y-8 pb-32 pt-20 px-4">
       <Toaster richColors position="bottom-right" />
       
+      <AnimatePresence>
+        {showRestartModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-slate-900 border border-red-500/30 w-full max-w-sm rounded-2xl p-6 shadow-2xl relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-red-500 animate-pulse" />
+              <div className="flex flex-col items-center text-center gap-4">
+                <div className="bg-red-500/20 p-4 rounded-full text-red-500">
+                  <RotateCcw size={32} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">¿Reiniciar Programa?</h3>
+                  <p className="text-sm text-slate-400 mt-2 leading-relaxed">
+                    Estás a punto de borrar todos tus registros locales. Perderás tu rango, insignias y progreso en los módulos. <strong className="text-red-400">Esta acción no se puede deshacer.</strong>
+                  </p>
+                </div>
+                <div className="flex gap-3 w-full mt-4">
+                  <button 
+                    onClick={() => setShowRestartModal(false)}
+                    className="flex-1 py-3 px-4 rounded-xl font-bold uppercase tracking-wider text-[10px] text-white bg-slate-800 hover:bg-slate-700 transition"
+                  >
+                    Mantener Progreso
+                  </button>
+                  <button 
+                    onClick={() => { localStorage.clear(); window.location.reload(); }}
+                    className="flex-1 py-3 px-4 rounded-xl font-bold uppercase tracking-wider text-[10px] text-white bg-red-600 hover:bg-red-500 shadow-[0_4px_14px_0_rgba(220,38,38,0.39)] transition transform hover:-translate-y-0.5"
+                  >
+                    Confirmar Borrado
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showSummaryModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-slate-900 border border-cyan-500/30 w-full max-w-md rounded-2xl p-6 shadow-2xl relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-cyan-500" />
+              <div className="flex flex-col gap-4">
+                <div className="flex justify-between items-center border-b border-white/10 pb-4">
+                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <User size={24} className="text-cyan-400" /> Resumen de Progreso
+                  </h3>
+                  <button onClick={() => setShowSummaryModal(false)} className="text-slate-400 hover:text-white transition">
+                    <X size={20} />
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4 bg-slate-800/50 p-4 rounded-xl border border-white/5">
+                    <img src={user.avatar} className="w-16 h-16 rounded-full border-2 border-cyan-500/50" />
+                    <div>
+                      <h4 className="font-bold text-lg text-white">{user.nombre}</h4>
+                      <p className="text-cyan-400 text-xs font-black uppercase tracking-widest">{currentRank.name} - NIVEL {user.nivel}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-slate-800/50 p-3 flex flex-col justify-center items-center rounded-xl border border-white/5">
+                      <span className="text-2xl font-black text-white">{user.puntos}</span>
+                      <span className="text-[10px] text-slate-400 uppercase font-bold">Experiencia (XP)</span>
+                    </div>
+                    <div className="bg-slate-800/50 p-3 flex flex-col justify-center items-center rounded-xl border border-white/5">
+                      <span className="text-2xl font-black text-green-400">
+                        {[
+                          (user.usedConcepts || []).length > 0, 
+                          answeredQuiz.length === QUIZ_QUESTIONS.length,
+                          checklist.length === 5,
+                          isGlossaryDone
+                        ].filter(Boolean).length} / 4
+                      </span>
+                      <span className="text-[10px] text-slate-400 uppercase font-bold">Módulos Completos</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-800/50 p-4 rounded-xl border border-white/5">
+                    <h5 className="text-[10px] font-black uppercase text-slate-400 mb-3 tracking-widest">Insignias Adquiridas</h5>
+                    {user.badges.length > 0 ? (
+                      <div className="flex gap-2 flex-wrap">
+                        {user.badges.map(key => {
+                          const b = INSIGNIAS[key as keyof typeof INSIGNIAS];
+                          if (!b) return null;
+                          const Icon = b.icon;
+                          return (
+                            <div key={key} className={`px-2 py-1.5 rounded-lg flex items-center gap-2 ${b.color} shadow-lg`} title={b.name}>
+                              <Icon size={12} className="text-white" />
+                              <span className="text-[9px] font-bold text-white uppercase">{b.name}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500 italic">No tienes insignias todavía. Completa módulos para ganar reconocimientos.</p>
+                    )}
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => setShowSummaryModal(false)}
+                  className="w-full mt-2 py-3 px-4 rounded-xl font-bold uppercase tracking-wider text-[10px] text-white bg-cyan-600 hover:bg-cyan-500 transition"
+                >
+                  Cerrar Resumen
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Dashboard */}
       <motion.header 
         initial={{ opacity: 0, y: -20 }}
@@ -407,17 +577,82 @@ export default function App() {
         </div>
 
         {/* Identity area */}
-        <div className="flex items-center gap-4 bg-white/5 px-4 py-1.5 rounded-full border border-white/10">
-          <div className="relative">
-            <img src={user.avatar} alt="Avatar" className="w-8 h-8 rounded-full border border-cyan-500/50 shadow-lg" />
-            <div className="absolute -bottom-1 -right-1 bg-cyan-600 text-white rounded-full w-4 h-4 flex items-center justify-center font-bold text-[8px] shadow-lg">
-              {user.nivel}
+        <div className="flex items-center gap-4 bg-white/5 px-4 py-1.5 rounded-full border border-white/10 relative">
+          <div 
+            className="flex items-center gap-3 cursor-pointer group"
+            onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+          >
+            <div className="relative">
+              <img src={user.avatar} alt="Avatar" className="w-8 h-8 rounded-full border border-cyan-500/50 group-hover:border-cyan-400 group-hover:scale-110 transition-all shadow-lg" />
+              <div className="absolute -bottom-1 -right-1 bg-cyan-600 text-white rounded-full w-4 h-4 flex items-center justify-center font-bold text-[8px] shadow-lg">
+                {user.nivel}
+              </div>
+            </div>
+            <div>
+              <h2 className="text-[10px] font-black leading-none text-white uppercase group-hover:text-cyan-300 transition-colors">{user.nombre}</h2>
+              <p className="text-[8px] opacity-60 uppercase tracking-widest">{currentRank.name}</p>
             </div>
           </div>
-          <div>
-            <h2 className="text-[10px] font-black leading-none text-white uppercase">{user.nombre}</h2>
-            <p className="text-[8px] opacity-60 uppercase tracking-widest">{currentRank.name}</p>
-          </div>
+
+          <AnimatePresence>
+            {showProfileDropdown && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                className="absolute top-[120%] left-0 w-64 bg-slate-900 border border-white/20 p-4 rounded-xl shadow-2xl z-50 flex flex-col gap-3"
+              >
+                <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                  <span className="text-[10px] font-black uppercase text-slate-400">Progreso Global</span>
+                  <span className="text-xs font-bold text-cyan-400">{user.puntos} XP</span>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-[9px] uppercase font-bold text-slate-300">Rango Actual:</span>
+                  <span className="text-[10px] font-black text-white">{currentRank.name}</span>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-[9px] uppercase font-bold text-slate-300">Módulos Completados:</span>
+                  <span className="text-[10px] font-black text-green-400">
+                    {[
+                      (user.usedConcepts || []).length > 0, 
+                      answeredQuiz.length === QUIZ_QUESTIONS.length,
+                      checklist.length === 5,
+                      isGlossaryDone
+                    ].filter(Boolean).length} / 4
+                  </span>
+                </div>
+
+                <div className="border-t border-white/10 pt-2 mt-1">
+                  <span className="text-[9px] uppercase font-bold text-slate-400 block mb-2">Últimas Insignias</span>
+                  <div className="flex gap-2 flex-wrap">
+                    {user.badges.slice(-3).map(key => {
+                      const b = INSIGNIAS[key as keyof typeof INSIGNIAS];
+                      if (!b) return null;
+                      const Icon = b.icon;
+                      return (
+                        <div key={key} className={`w-6 h-6 rounded flex items-center justify-center ${b.color} shadow-lg`} title={b.name}>
+                          <Icon size={10} className="text-white" />
+                        </div>
+                      );
+                    })}
+                    {user.badges.length === 0 && <span className="text-[9px] italic text-slate-500">Aún no hay insignias</span>}
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => {
+                    setShowProfileDropdown(false);
+                    setShowSummaryModal(true);
+                  }}
+                  className="w-full mt-2 py-2 px-3 rounded-lg font-bold uppercase tracking-wider text-[9px] text-white bg-white/10 hover:bg-white/20 transition flex items-center justify-center gap-2"
+                >
+                  <User size={12} /> Ver Resumen Detallado
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
         
         {/* Stats & Tools */}
@@ -437,7 +672,7 @@ export default function App() {
           </div>
 
           <button 
-            onClick={() => { localStorage.clear(); window.location.reload(); }}
+            onClick={() => setShowRestartModal(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/20 border border-red-500/50 text-[8px] font-black text-red-100 uppercase hover:bg-red-500 transition-all group"
           >
             <RotateCcw size={10} className="group-hover:rotate-[-180deg] transition-transform duration-500" />
@@ -447,9 +682,9 @@ export default function App() {
       </motion.header>
 
         {/* User Statistics & Badges Row */}
-        <div className="grid md:grid-cols-2 gap-4">
-          <div className="glass p-4 bg-white/5 border border-white/10 flex items-center gap-4">
-            <h3 className="text-[10px] font-black uppercase text-white/40 tracking-wider">Insignias Ganadas</h3>
+        <div className="grid md:grid-cols-3 gap-4">
+          <div className="glass p-4 bg-white/5 border border-white/10 flex items-center justify-between">
+            <h3 className="text-[10px] font-black uppercase text-slate-300 tracking-wider">Insignias</h3>
             <div className="flex gap-2">
               {Object.keys(INSIGNIAS).map(key => {
                 const b = INSIGNIAS[key as keyof typeof INSIGNIAS];
@@ -463,8 +698,18 @@ export default function App() {
               })}
             </div>
           </div>
-          <div className="glass p-4 bg-white/5 border border-white/10 flex justify-between items-center">
-            <h3 className="text-[10px] font-black uppercase text-white/40 tracking-wider">Estado de Bitácora</h3>
+
+          <div className="glass p-4 bg-white/5 border border-white/10 flex flex-col justify-center gap-1.5">
+            <h3 className="text-[10px] font-black uppercase text-slate-300 tracking-wider">Leyenda de Rangos</h3>
+            <div className="flex justify-between items-center text-[9px] font-mono opacity-80">
+              <span className="text-slate-400">Aprendiz: 0-150</span>
+              <span className="text-cyan-400">Operador: 151-400</span>
+              <span className="text-purple-400">Maestro: 401-800</span>
+            </div>
+          </div>
+          
+          <div className="glass p-4 bg-white/5 border border-white/10 flex flex-col justify-center gap-1">
+            <h3 className="text-[10px] font-black uppercase text-slate-300 tracking-wider">Estado de Bitácora</h3>
             <span className={`text-[10px] font-bold ${evaluation ? 'text-green-400' : 'text-orange-400'}`}>
               {evaluation ? `COMPLETADA - NOTA: ${evaluation.score}` : 'PENDIENTE DE EVALUACIÓN'}
             </span>
@@ -476,7 +721,7 @@ export default function App() {
         <div className="flex flex-col items-center gap-6">
           <div className="text-center">
             <h2 className="text-xs font-black uppercase tracking-[0.4em] text-cyan-400">Ruta de Formación Técnica</h2>
-            <p className="text-[10px] text-white/50 mt-1 uppercase">Selecciona un módulo para forjar tu competencia</p>
+            <p className="text-[10px] text-slate-300 mt-1 uppercase">Selecciona un módulo para forjar tu competencia</p>
           </div>
           
           <nav className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 w-full">
@@ -493,7 +738,7 @@ export default function App() {
                   className={`flex flex-col items-center justify-center gap-3 p-4 rounded-2xl transition-all border relative overflow-hidden ${
                     isActive 
                     ? 'bg-cyan-500 border-white/40 shadow-[0_0_30px_rgba(6,182,212,0.5)] scale-105 z-10' 
-                    : 'bg-white/5 border-white/10 hover:bg-white/10 text-white/60'
+                    : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300'
                   }`}
                 >
                   <div className={`p-2 rounded-xl ${isActive ? 'bg-white/20' : 'bg-black/20'}`}>
@@ -504,7 +749,7 @@ export default function App() {
                     <span className={`block text-[10px] font-black uppercase leading-tight ${isActive ? 'text-white' : 'text-white/90'}`}>
                       {act.name}
                     </span>
-                    <span className={`text-[8px] mt-1 block uppercase opacity-60 font-bold ${isActive ? 'text-white' : ''}`}>
+                    <span className={`text-[8px] mt-1 block uppercase opacity-80 font-bold ${isActive ? 'text-white' : ''}`}>
                       {act.desc}
                     </span>
                   </div>
@@ -517,7 +762,7 @@ export default function App() {
                   )}
                   
                   {/* Step number badge */}
-                  <div className="absolute top-2 right-2 text-[8px] font-black opacity-30">
+                  <div className="absolute top-2 right-2 text-[8px] font-black opacity-50">
                     0{idx + 1}
                   </div>
                 </button>
@@ -533,7 +778,7 @@ export default function App() {
         {/* Shared Sidebar: Concept Forge */}
         <div className="lg:col-span-4 space-y-6">
           <div className="glass p-6 space-y-6 text-center">
-            <h2 className="text-xs font-bold uppercase tracking-wider mb-4 opacity-70 border-b border-white/10 pb-2 flex items-center justify-center gap-2">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200 border-b border-white/10 pb-2 flex items-center justify-center gap-2">
               <Layers size={14} className="text-cyan-400" /> FORJA DE CONCEPTOS
             </h2>
             <button onClick={drawCards} className="clay-button w-full bg-cyan-600 hover:bg-cyan-500 text-xs py-4 flex items-center gap-2 justify-center">
@@ -549,16 +794,23 @@ export default function App() {
                   initial={{ x: -20, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
                   exit={{ x: 20, opacity: 0 }}
-                  className="clay-card p-5 bg-slate-800/50 border-l-4 border-cyan-500 text-left"
+                  className={`clay-card p-5 bg-slate-800/50 border-l-4 text-left relative ${user?.usedConcepts?.includes(cards.a.nombre) ? 'border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.2)]' : 'border-cyan-500'}`}
                 >
                   <div className="flex justify-between items-start">
                     <div>
                       <span className="text-[10px] font-bold uppercase text-cyan-400">Mecanica</span>
-                      <h3 className="text-lg font-bold mt-1 text-white">{cards.a.nombre}</h3>
+                      <h3 className="text-lg font-bold mt-1 text-white flex items-center gap-2">
+                        {cards.a.nombre}
+                        {user?.usedConcepts?.includes(cards.a.nombre) && (
+                          <span className="text-[8px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full uppercase tracking-widest flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span> Dominado
+                          </span>
+                        )}
+                      </h3>
                     </div>
-                    <Settings className="text-cyan-500/30" size={20} />
+                    <Settings className={`${user?.usedConcepts?.includes(cards.a.nombre) ? 'text-green-500/40' : 'text-cyan-500/30'}`} size={20} />
                   </div>
-                  <p className="text-xs opacity-70 leading-relaxed mt-2 italic">{cards.a.descripcion}</p>
+                  <p className="text-xs opacity-90 text-slate-300 leading-relaxed mt-2 italic">{cards.a.descripcion}</p>
                 </motion.div>
               )}
               {cards.b && (
@@ -568,16 +820,23 @@ export default function App() {
                   animate={{ x: 0, opacity: 1 }}
                   exit={{ x: 20, opacity: 0 }}
                   transition={{ delay: 0.1 }}
-                  className="clay-card p-5 bg-slate-800/50 border-l-4 border-orange-500 text-left"
+                  className={`clay-card p-5 bg-slate-800/50 border-l-4 text-left relative ${user?.usedConcepts?.includes(cards.b.nombre) ? 'border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.2)]' : 'border-orange-500'}`}
                 >
                   <div className="flex justify-between items-start">
                     <div>
                       <span className="text-[10px] font-bold uppercase text-orange-400">Simbolismo</span>
-                      <h3 className="text-lg font-bold mt-1 text-white">{cards.b.nombre}</h3>
+                      <h3 className="text-lg font-bold mt-1 text-white flex items-center gap-2">
+                        {cards.b.nombre}
+                        {user?.usedConcepts?.includes(cards.b.nombre) && (
+                          <span className="text-[8px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full uppercase tracking-widest flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span> Dominado
+                          </span>
+                        )}
+                      </h3>
                     </div>
-                    <BookOpen className="text-orange-500/30" size={20} />
+                    <BookOpen className={`${user?.usedConcepts?.includes(cards.b.nombre) ? 'text-green-500/40' : 'text-orange-500/30'}`} size={20} />
                   </div>
-                  <p className="text-xs opacity-70 leading-relaxed mt-2 italic">{cards.b.descripcion}</p>
+                  <p className="text-xs opacity-90 text-slate-300 leading-relaxed mt-2 italic">{cards.b.descripcion}</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -596,11 +855,11 @@ export default function App() {
                 className="glass p-6 h-full flex flex-col gap-6"
               >
                 <div className="flex justify-between items-center">
-                  <h2 className="text-xs font-bold uppercase tracking-wider opacity-70 border-b border-white/10 pb-2 flex-1">
+                  <h2 className="text-xs font-black text-slate-200 uppercase tracking-wider border-b border-white/10 pb-2 flex-1">
                     ACTIVIDAD 1: BITÁCORA CRÍTICA
                   </h2>
                   <div className="text-right ml-4">
-                    <span className={`text-[10px] font-mono bg-black/30 px-3 py-1 rounded-full border border-white/10 ${wordCount >= 60 ? 'text-green-400' : 'text-orange-400'}`}>
+                    <span className={`text-[10px] font-mono bg-black/30 px-3 py-1 rounded-full border border-white/10 ${wordCount >= 60 ? 'text-green-400' : 'text-red-400 font-bold shadow-[0_0_8px_rgba(248,113,113,0.3)]'}`}>
                       PALABRAS: {wordCount} / 60
                     </span>
                   </div>
@@ -631,7 +890,7 @@ export default function App() {
                     </div>
                     <span className={`absolute top-10 whitespace-nowrap text-[9px] uppercase font-black tracking-widest ${
                       wordCount >= 60 ? 'text-green-400' : 
-                      (!!cards.a && !!cards.b ? 'text-cyan-400' : 'text-white/30')
+                      (!!cards.a && !!cards.b ? 'text-cyan-400' : 'text-slate-400')
                     }`}>Análisis</span>
                   </div>
 
@@ -648,12 +907,12 @@ export default function App() {
                     </div>
                     <span className={`absolute top-10 whitespace-nowrap text-[9px] uppercase font-black tracking-widest ${
                       !!evaluation ? 'text-green-400' : 
-                      (wordCount >= 60 ? 'text-cyan-400' : 'text-white/30')
+                      (wordCount >= 60 ? 'text-cyan-400' : 'text-slate-400')
                     }`}>Evalúa</span>
                   </div>
                 </div>
                 
-                <p className="text-[11px] opacity-70 italic max-w-lg leading-relaxed border-l-2 border-white/20 pl-3">
+                <p className="text-[11px] opacity-90 italic max-w-lg leading-relaxed border-l-2 border-white/40 pl-3 text-slate-200">
                   "¿Cómo se protege el bienestar humano frente a la eficiencia de la máquina? Asume tu responsabilidad social como futuro técnico combinando ambos conceptos."
                 </p>
 
@@ -663,6 +922,14 @@ export default function App() {
                   placeholder="Escribe aquí tu análisis..." 
                   className="flex-1 clay-input text-sm leading-relaxed min-h-[300px] resize-none"
                 />
+
+                {wordCount < 60 && (
+                  <div className="text-center">
+                    <p className="inline-block text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-3 py-1 rounded-full uppercase tracking-wider font-bold animate-pulse">
+                      Faltan {60 - wordCount} palabras para habilitar la evaluación
+                    </p>
+                  </div>
+                )}
 
                 <div className="flex gap-4">
                   <button 
@@ -693,7 +960,7 @@ export default function App() {
                     const isDone = answeredQuiz.includes(i);
                     return (
                       <div key={i} className={`space-y-3 p-4 rounded-xl transition-opacity ${isDone ? 'opacity-50 grayscale' : 'opacity-100'}`}>
-                        <p className="text-xs font-bold opacity-80">{i+1}. {q.q}</p>
+                        <p className="text-xs font-bold text-slate-200">{i+1}. {q.q}</p>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           {q.options.map((opt, oi) => (
                             <button 
@@ -701,17 +968,23 @@ export default function App() {
                               disabled={isEvaluating || isDone}
                               onClick={() => {
                                 if(oi === q.correct) {
-                                  toast.success("¡Excelente!");
+                                  toast.success(`¡Excelente! ${q.feedback}`, { duration: 6000 });
                                   if(!isDone) { 
                                     addXP(20); 
                                     setAnsweredQuiz(prev => [...prev, i]);
                                     if(answeredQuiz.length + 1 === QUIZ_QUESTIONS.length) {
                                       addXP(50, 'TRIVIAL');
-                                      toast.success("¡Has completado toda la trivia!", { icon: "🏆" });
+                                      toast.success("¡Has completado toda la trivia!", { icon: "🏆", duration: 4000 });
                                     }
                                   }
                                 } else {
-                                  toast.error("Incorrecto, vuelve a leer.");
+                                  toast.error(
+                                    <div className="flex flex-col gap-1">
+                                      <span className="font-bold">Incorrecto. La respuesta correcta es '{q.options[q.correct]}'.</span>
+                                      <span className="text-xs opacity-90 leading-relaxed font-normal">{q.feedback}</span>
+                                    </div>,
+                                    { duration: 8000 }
+                                  );
                                 }
                               }}
                               className={`clay-button text-[10px] py-3 ${isDone ? 'bg-black/10' : 'bg-black/30 hover:bg-black/50'}`}
@@ -727,25 +1000,47 @@ export default function App() {
               </motion.div>
             )}
 
-            {activeTab === 'empathy' && (
-              <motion.div key="empathy" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass p-8 space-y-6">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-[#f8fafc]">Mapa de Empatía: El Obrero</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  {['PIENSA', 'SIENTE', 'DICE', 'HACE'].map(field => (
-                    <div key={field} className="space-y-2">
-                      <label className="text-[10px] font-bold opacity-50 tracking-widest uppercase">{field}</label>
-                      <textarea 
-                        className="w-full clay-input h-32 text-xs" 
-                        placeholder="..." 
-                        onChange={(e) => setEmpathyMap({...empathyMap, [field.toLowerCase()]: e.target.value})}
-                      />
-                    </div>
-                  ))}
-                </div>
-                <button 
-                  onClick={() => {
-                    const fields = Object.values(empathyMap) as string[];
-                    if (fields.every(v => v.length > 5)) {
+            {activeTab === 'empathy' && (() => {
+              const EMPATHY_FIELDS = [
+                { key: 'piensa', label: 'PIENSA', placeholder: 'Ej: Reflexiona sobre la alienación técnica, el desgaste diario operando la máquina y la pérdida de identidad frente al automatismo...' },
+                { key: 'siente', label: 'SIENTE', placeholder: 'Ej: Siente terror a ser mutilado, angustia por la repetición constante y sofoco frente a las duras condiciones...' },
+                { key: 'dice', label: 'DICE', placeholder: 'Ej: Manifiesta su agotamiento en silencios, frases de sumisión y quejas ahogadas por miedo a ser despedido...' },
+                { key: 'hace', label: 'HACE', placeholder: 'Ej: Ejecuta movimientos mecánicos ciegamente, arriesga su integridad en los engranajes y obedece instrucciones...' }
+              ];
+              
+              const isAllValid = EMPATHY_FIELDS.every(field => {
+                const text = empathyMap[field.key as keyof typeof empathyMap];
+                return (text.trim() ? text.trim().split(/\s+/).length : 0) >= 10;
+              });
+
+              return (
+                <motion.div key="empathy" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass p-8 space-y-6">
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-[#f8fafc]">Mapa de Empatía: El Obrero</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {EMPATHY_FIELDS.map(field => {
+                      const text = empathyMap[field.key as keyof typeof empathyMap];
+                      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+                      return (
+                        <div key={field.key} className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <label className="text-[10px] font-bold opacity-50 tracking-widest uppercase">{field.label}</label>
+                            <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-full transition-colors ${words >= 10 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400 animate-pulse'}`}>
+                              {words} / 10 palabras
+                            </span>
+                          </div>
+                          <textarea 
+                            className="w-full clay-input h-32 text-xs leading-relaxed resize-none" 
+                            placeholder={field.placeholder} 
+                            value={text}
+                            onChange={(e) => setEmpathyMap({...empathyMap, [field.key]: e.target.value})}
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <button 
+                    disabled={!isAllValid}
+                    onClick={() => {
                       if (!isEmpathyDone) {
                         addXP(50);
                         setIsEmpathyDone(true);
@@ -753,16 +1048,14 @@ export default function App() {
                       } else {
                         toast.info("Perfil actualizado (ya recibiste los puntos)");
                       }
-                    } else {
-                      toast.error("Por favor, completa todos los campos con más detalle.");
-                    }
-                  }} 
-                  className={`clay-button w-full text-xs transition-all ${isEmpathyDone ? 'bg-slate-700' : 'bg-purple-600'}`}
-                >
-                  {isEmpathyDone ? 'ACTUALIZAR PERFIL' : 'GUARDAR PERFIL (+50 XP)'}
-                </button>
-              </motion.div>
-            )}
+                    }} 
+                    className={`clay-button w-full text-[10px] py-4 transition-all uppercase tracking-wider ${!isAllValid ? 'bg-slate-800 opacity-60 cursor-not-allowed text-red-400 font-bold' : (isEmpathyDone ? 'bg-slate-700' : 'bg-purple-600 hover:scale-[1.02] active:scale-95')}`}
+                  >
+                    {!isAllValid ? 'Faltan palabras en algunos campos' : (isEmpathyDone ? 'PERFIL EDITADO Y GUARDADO' : 'GUARDAR PERFIL EMPÁTICO (+50 XP)')}
+                  </button>
+                </motion.div>
+              );
+            })()}
 
             {activeTab === 'debate' && (
               <motion.div key="debate" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="glass p-8 space-y-8 text-center">
@@ -796,7 +1089,7 @@ export default function App() {
             {activeTab === 'glossary' && (
               <motion.div key="glossary" initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="glass p-8 space-y-6">
                 <h3 className="text-sm font-bold uppercase tracking-widest text-[#f8fafc]">DICCIONARIO DE SÍMBOLOS FORJADOS</h3>
-                <p className="text-[10px] opacity-50 italic">La integración entre la precisión técnica y la profundidad literaria.</p>
+                <p className="text-[10px] opacity-80 text-slate-300 italic">La integración entre la precisión técnica y la profundidad literaria.</p>
                 <div className="grid md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto pr-2">
                   {MAZO_A.slice(0, 8).map((tech, i) => {
                     const symb = MAZO_B[i % MAZO_B.length];
@@ -806,13 +1099,13 @@ export default function App() {
                           <div className="flex-1">
                             <span className="text-[8px] font-black text-cyan-400 uppercase tracking-tighter">Materialidad Técnica</span>
                             <h4 className="text-xs font-bold text-white mb-1">{tech.nombre}</h4>
-                            <p className="text-[9px] opacity-60 leading-tight">{tech.descripcion}</p>
+                            <p className="text-[9px] opacity-90 text-slate-300 leading-tight">{tech.descripcion}</p>
                           </div>
                           <div className="w-px h-12 bg-white/10" />
                           <div className="flex-1 text-right">
                             <span className="text-[8px] font-black text-orange-400 uppercase tracking-tighter">Esencia Simbólica</span>
                             <h4 className="text-xs font-bold text-white mb-1">{symb.nombre}</h4>
-                            <p className="text-[9px] opacity-60 leading-tight italic">{symb.descripcion}</p>
+                            <p className="text-[9px] opacity-90 text-slate-300 leading-tight italic">{symb.descripcion}</p>
                           </div>
                         </div>
                       </div>
@@ -895,21 +1188,21 @@ export default function App() {
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center text-green-400 border border-green-500/30"><CheckCircle2 size={16} /></div>
                     <div>
-                      <h4 className="text-[10px] font-bold uppercase text-white/70">Integración Técnica</h4>
-                      <p className="text-xs opacity-70 leading-relaxed">{evaluation.feedbackConcepts}</p>
+                      <h4 className="text-[10px] font-black uppercase text-slate-300">Integración Técnica</h4>
+                      <p className="text-xs opacity-90 leading-relaxed">{evaluation.feedbackConcepts}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center text-orange-400 border border-orange-500/30"><Heart size={16} /></div>
                     <div>
-                      <h4 className="text-[10px] font-bold uppercase text-white/70">Dimensión Ética</h4>
-                      <p className="text-xs opacity-70 leading-relaxed">{evaluation.feedbackEthics}</p>
+                      <h4 className="text-[10px] font-black uppercase text-slate-300">Dimensión Ética</h4>
+                      <p className="text-xs opacity-90 leading-relaxed">{evaluation.feedbackEthics}</p>
                     </div>
                   </div>
                 </div>
                 <div className="bg-white/5 rounded-2xl p-6 border border-white/10 flex flex-col justify-center items-center text-center">
                   <Quote className="text-white/10 mb-4 rotate-180" size={24} />
-                  <p className="text-xs opacity-80 italic leading-relaxed">
+                  <p className="text-xs opacity-90 italic leading-relaxed">
                     "Tu responsabilidad como técnico no termina en el engranaje, comienza en el corazón de quien lo opera."
                   </p>
                 </div>
@@ -963,7 +1256,7 @@ export default function App() {
         </div>
       </div>
 
-      <footer className="h-12 flex items-center justify-center bg-black/40 text-[10px] opacity-50 uppercase tracking-widest fixed bottom-0 left-0 w-full z-50">
+      <footer className="h-12 flex items-center justify-center bg-black/40 text-[10px] opacity-80 text-slate-300 uppercase tracking-widest fixed bottom-0 left-0 w-full z-50">
         Creado por: Christian Núñez, Asesor Pedagógico, Programa PACE-UDA, 2026.
       </footer>
     </div>
