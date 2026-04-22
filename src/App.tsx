@@ -24,7 +24,10 @@ import {
   Shield,
   ClipboardList,
   RotateCcw,
-  X
+  X,
+  Volume2,
+  Accessibility,
+  BookText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
@@ -125,6 +128,15 @@ const QUIZ_QUESTIONS = [
   }
 ];
 
+const GLOSARIO_TERMINOS = [
+  { palabra: "Alienación", definicion: "Pérdida de identidad personal y desconexión con el propio trabajo, sintiéndose como una pieza más de la máquina." },
+  { palabra: "Autómata", definicion: "Máquina que imita los movimientos de un ser vivo. A menudo se usa para describir a una persona que actúa sin pensar." },
+  { palabra: "Engranaje", definicion: "Pieza mecánica con dientes. En la literatura, simboliza estar atrapado en un sistema inmenso y repetitivo." },
+  { palabra: "Fatiga", definicion: "Cansancio extremo físico y mental, frecuentemente causado por largas jornadas de trabajo repetitivo." },
+  { palabra: "Reivindicación", definicion: "Exigir o recuperar un derecho que ha sido quitado, como el respeto a la dignidad del trabajador." },
+  { palabra: "Simbolismo", definicion: "Técnica literaria que usa objetos o elementos para representar ideas más profundas (ej: la sangre representa el sacrificio humano)." }
+];
+
 interface UserData {
   nombre: string;
   avatar: string;
@@ -173,6 +185,23 @@ export default function App() {
   const [showRestartModal, setShowRestartModal] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [showA11yMenu, setShowA11yMenu] = useState(false);
+  const [showMainGlossaryModal, setShowMainGlossaryModal] = useState(false);
+  const [a11y, setA11y] = useState({
+    legibleFont: false,
+    largeText: false,
+    highSpacing: false,
+    simpleLanguage: false
+  });
+
+  const speak = (text: string) => {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'es-ES';
+    utterance.rate = 0.9;
+    window.speechSynthesis.speak(utterance);
+  };
+
   const evaluationRef = useRef<HTMLDivElement>(null);
   const pdfRef = useRef<HTMLDivElement>(null);
 
@@ -399,17 +428,17 @@ export default function App() {
           animate={{ opacity: 1, scale: 1 }}
           className="clay-card w-full max-w-lg p-8 space-y-6 text-center"
         >
-          <h2 className="text-3xl font-bold text-slate-800">¡Bienvenido al Taller!</h2>
-          <p className="text-slate-600">Para comenzar tu bitácora, ingresa tus datos:</p>
+            <h2 className="text-4xl font-black text-slate-800 tracking-tight">¡Bienvenido al Taller!</h2>
+          <p className="text-lg text-slate-600 leading-relaxed">Para comenzar tu bitácora, ingresa tus datos:</p>
           <input 
             type="text" 
             value={regName}
             onChange={(e) => setRegName(e.target.value)}
             placeholder="Tu nombre artístico o técnico" 
-            className="w-full clay-input text-lg"
+            className="w-full clay-input"
           />
           <div className="space-y-4">
-            <p className="font-semibold text-slate-700">Selecciona tu Avatar:</p>
+            <p className="text-lg font-semibold text-slate-700">Selecciona tu Avatar:</p>
             <div className="grid grid-cols-3 gap-4">
               {AVATARS.map((url) => (
                 <img 
@@ -435,10 +464,100 @@ export default function App() {
   const xpProgress = ((user.puntos - currentRank.minXP) / (nextRank.minXP - currentRank.minXP)) * 100;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-32 pt-20 px-4">
+    <div className={`max-w-6xl mx-auto space-y-8 pb-32 pt-20 px-4 transition-all duration-300 ${a11y.legibleFont ? '[&_*]:!font-sans' : ''} ${a11y.largeText ? '[&_p]:!text-base [&_span]:!text-sm [&_h1]:!text-3xl [&_h2]:!text-xl [&_h3]:!text-lg' : ''} ${a11y.highSpacing ? '[&_*]:!leading-loose [&_*]:!tracking-widest' : ''}`}>
       <Toaster richColors position="bottom-right" />
       
       <AnimatePresence>
+        {showA11yMenu && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 px-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-slate-900 border border-indigo-500/30 w-full max-w-sm rounded-2xl p-6 shadow-2xl relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-indigo-500" />
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Accessibility size={24} className="text-indigo-400" /> Accesibilidad
+                </h3>
+                <button onClick={() => setShowA11yMenu(false)} className="text-slate-400 hover:text-white">
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <label className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10 cursor-pointer hover:bg-white/10 transition">
+                  <div>
+                    <span className="block text-base font-bold text-white">Tipografía Legible</span>
+                    <span className="block text-sm text-slate-400">Fuente sin serifas simple y ancha.</span>
+                  </div>
+                  <input type="checkbox" className="w-5 h-5 accent-indigo-500" checked={a11y.legibleFont} onChange={(e) => setA11y({...a11y, legibleFont: e.target.checked})} />
+                </label>
+                
+                <label className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10 cursor-pointer hover:bg-white/10 transition">
+                  <div>
+                    <span className="block text-base font-bold text-white">Texto Ampliado</span>
+                    <span className="block text-sm text-slate-400">Aumenta el tamaño global.</span>
+                  </div>
+                  <input type="checkbox" className="w-5 h-5 accent-indigo-500" checked={a11y.largeText} onChange={(e) => setA11y({...a11y, largeText: e.target.checked})} />
+                </label>
+
+                <label className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10 cursor-pointer hover:bg-white/10 transition">
+                  <div>
+                    <span className="block text-base font-bold text-white">Espaciado Alto</span>
+                    <span className="block text-sm text-slate-400">Mayor separación de líneas.</span>
+                  </div>
+                  <input type="checkbox" className="w-5 h-5 accent-indigo-500" checked={a11y.highSpacing} onChange={(e) => setA11y({...a11y, highSpacing: e.target.checked})} />
+                </label>
+
+                <label className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10 cursor-pointer hover:bg-white/10 transition">
+                  <div>
+                    <span className="block text-base font-bold text-white">Lenguaje Simple</span>
+                    <span className="block text-sm text-slate-400">Instrucciones directas y fáciles.</span>
+                  </div>
+                  <input type="checkbox" className="w-5 h-5 accent-indigo-500" checked={a11y.simpleLanguage} onChange={(e) => setA11y({...a11y, simpleLanguage: e.target.checked})} />
+                </label>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {showMainGlossaryModal && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 px-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-slate-900 border border-emerald-500/30 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500" />
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <BookText size={24} className="text-emerald-400" /> Glosario Rápido
+                </h3>
+                <button onClick={() => setShowMainGlossaryModal(false)} className="text-slate-400 hover:text-white">
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                {GLOSARIO_TERMINOS.map((term, i) => (
+                  <div key={i} className="p-4 bg-white/5 rounded-xl border border-white/10">
+                    <div className="flex justify-between items-start">
+                       <h4 className="font-bold text-emerald-300 text-lg">{term.palabra}</h4>
+                       <button onClick={() => speak(term.definicion)} className="text-slate-400 hover:text-white p-2 bg-white/5 rounded-lg border border-white/10">
+                         <Volume2 size={16} />
+                       </button>
+                    </div>
+                    <p className="text-base text-slate-300 mt-2 leading-relaxed">{term.definicion}</p>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+
         {showRestartModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4">
             <motion.div 
@@ -454,22 +573,22 @@ export default function App() {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-white">¿Reiniciar Programa?</h3>
-                  <p className="text-sm text-slate-400 mt-2 leading-relaxed">
+                  <p className="text-base text-slate-400 mt-3 leading-relaxed">
                     Estás a punto de borrar todos tus registros locales. Perderás tu rango, insignias y progreso en los módulos. <strong className="text-red-400">Esta acción no se puede deshacer.</strong>
                   </p>
                 </div>
-                <div className="flex gap-3 w-full mt-4">
+                <div className="flex gap-4 w-full mt-6">
                   <button 
                     onClick={() => setShowRestartModal(false)}
-                    className="flex-1 py-3 px-4 rounded-xl font-bold uppercase tracking-wider text-[10px] text-white bg-slate-800 hover:bg-slate-700 transition"
+                    className="flex-1 py-4 px-6 rounded-xl font-bold uppercase tracking-widest text-sm text-white bg-slate-800 hover:bg-slate-700 transition"
                   >
                     Mantener Progreso
                   </button>
                   <button 
                     onClick={() => { localStorage.clear(); window.location.reload(); }}
-                    className="flex-1 py-3 px-4 rounded-xl font-bold uppercase tracking-wider text-[10px] text-white bg-red-600 hover:bg-red-500 shadow-[0_4px_14px_0_rgba(220,38,38,0.39)] transition transform hover:-translate-y-0.5"
+                    className="flex-1 py-4 px-6 rounded-xl font-bold uppercase tracking-widest text-sm text-white bg-red-600 hover:bg-red-500 shadow-[0_4px_14px_0_rgba(220,38,38,0.39)] transition transform hover:-translate-y-0.5"
                   >
-                    Confirmar Borrado
+                    Borrar Todo
                   </button>
                 </div>
               </div>
@@ -502,18 +621,18 @@ export default function App() {
                   <div className="flex items-center gap-4 bg-slate-800/50 p-4 rounded-xl border border-white/5">
                     <img src={user.avatar} className="w-16 h-16 rounded-full border-2 border-cyan-500/50" />
                     <div>
-                      <h4 className="font-bold text-lg text-white">{user.nombre}</h4>
-                      <p className="text-cyan-400 text-xs font-black uppercase tracking-widest">{currentRank.name} - NIVEL {user.nivel}</p>
+                      <h4 className="font-bold text-xl text-white">{user.nombre}</h4>
+                      <p className="text-cyan-400 text-sm font-black uppercase tracking-widest">{currentRank.name} - NIVEL {user.nivel}</p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-slate-800/50 p-3 flex flex-col justify-center items-center rounded-xl border border-white/5">
-                      <span className="text-2xl font-black text-white">{user.puntos}</span>
-                      <span className="text-[10px] text-slate-400 uppercase font-bold">Experiencia (XP)</span>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-slate-800/50 p-4 flex flex-col justify-center items-center rounded-xl border border-white/5">
+                      <span className="text-3xl font-black text-white">{user.puntos}</span>
+                      <span className="text-xs text-slate-400 uppercase font-bold tracking-wider">Experiencia (XP)</span>
                     </div>
-                    <div className="bg-slate-800/50 p-3 flex flex-col justify-center items-center rounded-xl border border-white/5">
-                      <span className="text-2xl font-black text-green-400">
+                    <div className="bg-slate-800/50 p-4 flex flex-col justify-center items-center rounded-xl border border-white/5">
+                      <span className="text-3xl font-black text-green-400">
                         {[
                           (user.usedConcepts || []).length > 0, 
                           answeredQuiz.length === QUIZ_QUESTIONS.length,
@@ -521,35 +640,35 @@ export default function App() {
                           isGlossaryDone
                         ].filter(Boolean).length} / 4
                       </span>
-                      <span className="text-[10px] text-slate-400 uppercase font-bold">Módulos Completos</span>
+                      <span className="text-xs text-slate-400 uppercase font-bold tracking-wider">Módulos Completos</span>
                     </div>
                   </div>
 
-                  <div className="bg-slate-800/50 p-4 rounded-xl border border-white/5">
-                    <h5 className="text-[10px] font-black uppercase text-slate-400 mb-3 tracking-widest">Insignias Adquiridas</h5>
+                  <div className="bg-slate-800/50 p-5 rounded-xl border border-white/5">
+                    <h5 className="text-xs font-black uppercase text-slate-400 mb-4 tracking-widest text-[14px]">Insignias Adquiridas</h5>
                     {user.badges.length > 0 ? (
-                      <div className="flex gap-2 flex-wrap">
+                      <div className="flex gap-3 flex-wrap">
                         {user.badges.map(key => {
                           const b = INSIGNIAS[key as keyof typeof INSIGNIAS];
                           if (!b) return null;
                           const Icon = b.icon;
                           return (
-                            <div key={key} className={`px-2 py-1.5 rounded-lg flex items-center gap-2 ${b.color} shadow-lg`} title={b.name}>
-                              <Icon size={12} className="text-white" />
-                              <span className="text-[9px] font-bold text-white uppercase">{b.name}</span>
+                            <div key={key} className={`px-3 py-2 rounded-lg flex items-center gap-3 ${b.color} shadow-lg`} title={b.name}>
+                              <Icon size={16} className="text-white" />
+                              <span className="text-xs font-bold text-white uppercase">{b.name}</span>
                             </div>
                           );
                         })}
                       </div>
                     ) : (
-                      <p className="text-xs text-slate-500 italic">No tienes insignias todavía. Completa módulos para ganar reconocimientos.</p>
+                      <p className="text-sm text-slate-500 italic">No tienes insignias todavía. Completa módulos para ganar reconocimientos.</p>
                     )}
                   </div>
                 </div>
 
                 <button 
                   onClick={() => setShowSummaryModal(false)}
-                  className="w-full mt-2 py-3 px-4 rounded-xl font-bold uppercase tracking-wider text-[10px] text-white bg-cyan-600 hover:bg-cyan-500 transition"
+                  className="w-full mt-4 py-4 px-6 rounded-xl font-bold uppercase tracking-widest text-sm text-white bg-cyan-600 hover:bg-cyan-500 transition"
                 >
                   Cerrar Resumen
                 </button>
@@ -571,26 +690,26 @@ export default function App() {
             <Settings className="text-white" size={16} />
           </div>
           <div className="hidden sm:block">
-            <h1 className="text-[10px] font-black uppercase tracking-widest leading-none text-white">Bitácora Industrial</h1>
-            <p className="text-[8px] font-bold text-cyan-400 uppercase tracking-tighter mt-0.5">El Alma de la Máquina</p>
+            <h1 className="text-lg font-black uppercase tracking-[0.2em] leading-none text-white">Bitácora Industrial</h1>
+            <p className="text-xs font-bold text-cyan-400 uppercase tracking-[0.1em] mt-1.5">El Alma de la Máquina</p>
           </div>
         </div>
 
         {/* Identity area */}
-        <div className="flex items-center gap-4 bg-white/5 px-4 py-1.5 rounded-full border border-white/10 relative">
+        <div className="flex items-center gap-6 bg-white/5 px-6 py-2 rounded-full border border-white/10 relative">
           <div 
-            className="flex items-center gap-3 cursor-pointer group"
+            className="flex items-center gap-4 cursor-pointer group"
             onClick={() => setShowProfileDropdown(!showProfileDropdown)}
           >
             <div className="relative">
-              <img src={user.avatar} alt="Avatar" className="w-8 h-8 rounded-full border border-cyan-500/50 group-hover:border-cyan-400 group-hover:scale-110 transition-all shadow-lg" />
-              <div className="absolute -bottom-1 -right-1 bg-cyan-600 text-white rounded-full w-4 h-4 flex items-center justify-center font-bold text-[8px] shadow-lg">
+              <img src={user.avatar} alt="Avatar" className="w-10 h-10 rounded-full border border-cyan-500/50 group-hover:border-cyan-400 group-hover:scale-110 transition-all shadow-lg" />
+              <div className="absolute -bottom-1 -right-1 bg-cyan-600 text-white rounded-full w-5 h-5 flex items-center justify-center font-bold text-[10px] shadow-lg">
                 {user.nivel}
               </div>
             </div>
             <div>
-              <h2 className="text-[10px] font-black leading-none text-white uppercase group-hover:text-cyan-300 transition-colors">{user.nombre}</h2>
-              <p className="text-[8px] opacity-60 uppercase tracking-widest">{currentRank.name}</p>
+              <h2 className="text-sm font-black leading-none text-white uppercase group-hover:text-cyan-300 transition-colors">{user.nombre}</h2>
+              <p className="text-[11px] opacity-60 uppercase tracking-widest mt-1">{currentRank.name}</p>
             </div>
           </div>
 
@@ -600,21 +719,21 @@ export default function App() {
                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                className="absolute top-[120%] left-0 w-64 bg-slate-900 border border-white/20 p-4 rounded-xl shadow-2xl z-50 flex flex-col gap-3"
+                className="absolute top-[130%] left-0 w-72 bg-slate-900 border border-white/20 p-5 rounded-xl shadow-2xl z-50 flex flex-col gap-4"
               >
-                <div className="flex justify-between items-center border-b border-white/10 pb-2">
-                  <span className="text-[10px] font-black uppercase text-slate-400">Progreso Global</span>
-                  <span className="text-xs font-bold text-cyan-400">{user.puntos} XP</span>
+                <div className="flex justify-between items-center border-b border-white/10 pb-3">
+                  <span className="text-xs font-black uppercase text-slate-400 tracking-widest">Progreso Global</span>
+                  <span className="text-sm font-bold text-cyan-400">{user.puntos} XP</span>
                 </div>
                 
                 <div className="flex justify-between items-center">
-                  <span className="text-[9px] uppercase font-bold text-slate-300">Rango Actual:</span>
-                  <span className="text-[10px] font-black text-white">{currentRank.name}</span>
+                  <span className="text-xs uppercase font-bold text-slate-300">Rango Actual:</span>
+                  <span className="text-xs font-black text-white">{currentRank.name}</span>
                 </div>
                 
                 <div className="flex justify-between items-center">
-                  <span className="text-[9px] uppercase font-bold text-slate-300">Módulos Completados:</span>
-                  <span className="text-[10px] font-black text-green-400">
+                  <span className="text-xs uppercase font-bold text-slate-300">Módulos:</span>
+                  <span className="text-xs font-black text-green-400 flex items-center gap-1.5">
                     {[
                       (user.usedConcepts || []).length > 0, 
                       answeredQuiz.length === QUIZ_QUESTIONS.length,
@@ -624,20 +743,20 @@ export default function App() {
                   </span>
                 </div>
 
-                <div className="border-t border-white/10 pt-2 mt-1">
-                  <span className="text-[9px] uppercase font-bold text-slate-400 block mb-2">Últimas Insignias</span>
-                  <div className="flex gap-2 flex-wrap">
+                <div className="border-t border-white/10 pt-3 mt-1">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-3 tracking-widest">Últimas Insignias</span>
+                  <div className="flex gap-3 flex-wrap">
                     {user.badges.slice(-3).map(key => {
                       const b = INSIGNIAS[key as keyof typeof INSIGNIAS];
                       if (!b) return null;
                       const Icon = b.icon;
                       return (
-                        <div key={key} className={`w-6 h-6 rounded flex items-center justify-center ${b.color} shadow-lg`} title={b.name}>
-                          <Icon size={10} className="text-white" />
+                        <div key={key} className={`w-8 h-8 rounded flex items-center justify-center ${b.color} shadow-lg`} title={b.name}>
+                          <Icon size={14} className="text-white" />
                         </div>
                       );
                     })}
-                    {user.badges.length === 0 && <span className="text-[9px] italic text-slate-500">Aún no hay insignias</span>}
+                    {user.badges.length === 0 && <span className="text-xs italic text-slate-500">Aún no hay insignias</span>}
                   </div>
                 </div>
 
@@ -646,9 +765,9 @@ export default function App() {
                     setShowProfileDropdown(false);
                     setShowSummaryModal(true);
                   }}
-                  className="w-full mt-2 py-2 px-3 rounded-lg font-bold uppercase tracking-wider text-[9px] text-white bg-white/10 hover:bg-white/20 transition flex items-center justify-center gap-2"
+                  className="w-full mt-2 py-3 px-4 rounded-lg font-bold uppercase tracking-widest text-[10px] text-white bg-white/10 hover:bg-white/20 transition flex items-center justify-center gap-2"
                 >
-                  <User size={12} /> Ver Resumen Detallado
+                  <User size={14} /> Ver Resumen Detallado
                 </button>
               </motion.div>
             )}
@@ -656,75 +775,95 @@ export default function App() {
         </div>
         
         {/* Stats & Tools */}
-        <div className="flex items-center gap-4">
-          <div className="hidden lg:flex flex-col gap-1 items-end">
-            <div className="flex justify-between w-32 text-[8px] text-cyan-400 uppercase font-black">
+        <div className="flex items-center gap-2">
+          <div className="hidden lg:flex flex-col gap-1 items-end mr-6">
+            <div className="flex justify-between w-40 text-xs text-cyan-400 uppercase font-black tracking-widest">
               <span>XP</span>
               <span>{user.puntos} / {nextRank.minXP}</span>
             </div>
-            <div className="w-32 h-1 bg-black/40 rounded-full overflow-hidden">
+            <div className="w-40 h-2 bg-black/40 rounded-full overflow-hidden">
               <motion.div 
                 initial={{ width: 0 }}
                 animate={{ width: `${xpProgress}%` }}
-                className="h-full bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.8)]"
+                className="h-full bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.8)]"
               />
             </div>
           </div>
 
           <button 
-            onClick={() => setShowRestartModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/20 border border-red-500/50 text-[8px] font-black text-red-100 uppercase hover:bg-red-500 transition-all group"
+            onClick={() => setShowMainGlossaryModal(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/50 text-[11px] font-black text-emerald-100 uppercase hover:bg-emerald-500 transition-all shadow-lg"
           >
-            <RotateCcw size={10} className="group-hover:rotate-[-180deg] transition-transform duration-500" />
+            <BookText size={14} />
+            <span className="hidden sm:inline">Glosario</span>
+          </button>
+
+          <button 
+            onClick={() => setShowA11yMenu(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-500/20 border border-indigo-500/50 text-[11px] font-black text-indigo-100 uppercase hover:bg-indigo-500 transition-all shadow-lg"
+          >
+            <Accessibility size={14} />
+            <span className="hidden sm:inline">Accesibilidad</span>
+          </button>
+
+          <button 
+            onClick={() => setShowRestartModal(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/20 border border-red-500/50 text-[11px] font-black text-red-100 uppercase hover:bg-red-500 transition-all group shadow-lg"
+          >
+            <RotateCcw size={14} className="group-hover:rotate-[-180deg] transition-transform duration-500" />
             <span className="hidden sm:inline">Reiniciar</span>
           </button>
         </div>
       </motion.header>
 
         {/* User Statistics & Badges Row */}
-        <div className="grid md:grid-cols-3 gap-4">
-          <div className="glass p-4 bg-white/5 border border-white/10 flex items-center justify-between">
-            <h3 className="text-[10px] font-black uppercase text-slate-300 tracking-wider">Insignias</h3>
-            <div className="flex gap-2">
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="glass p-5 bg-white/5 border border-white/10 flex items-center justify-between">
+            <h3 className="text-xs font-black uppercase text-slate-300 tracking-widest">Insignias</h3>
+            <div className="flex gap-3">
               {Object.keys(INSIGNIAS).map(key => {
                 const b = INSIGNIAS[key as keyof typeof INSIGNIAS];
                 const hasIt = user.badges.includes(key);
                 const Icon = b.icon;
                 return (
-                  <div key={key} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${hasIt ? b.color + ' shadow-lg scale-110' : 'bg-white/5 opacity-20 grayscale border border-white/5'}`} title={b.name}>
-                    <Icon size={14} className="text-white" />
+                  <div key={key} className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${hasIt ? b.color + ' shadow-[0_0_15px_rgba(0,0,0,0.5)] scale-110' : 'bg-white/5 opacity-20 grayscale border border-white/5'}`} title={b.name}>
+                    <Icon size={18} className="text-white" />
                   </div>
                 )
               })}
             </div>
           </div>
 
-          <div className="glass p-4 bg-white/5 border border-white/10 flex flex-col justify-center gap-1.5">
-            <h3 className="text-[10px] font-black uppercase text-slate-300 tracking-wider">Leyenda de Rangos</h3>
-            <div className="flex justify-between items-center text-[9px] font-mono opacity-80">
+          <div className="glass p-5 bg-white/5 border border-white/10 flex flex-col justify-center gap-2">
+            <h3 className="text-xs font-black uppercase text-slate-300 tracking-widest">Leyenda de Rangos</h3>
+            <div className="flex justify-between items-center text-[10px] font-mono opacity-80 tracking-tight">
               <span className="text-slate-400">Aprendiz: 0-150</span>
               <span className="text-cyan-400">Operador: 151-400</span>
-              <span className="text-purple-400">Maestro: 401-800</span>
+              <span className="text-purple-400">Maestro: 401+</span>
             </div>
           </div>
           
-          <div className="glass p-4 bg-white/5 border border-white/10 flex flex-col justify-center gap-1">
-            <h3 className="text-[10px] font-black uppercase text-slate-300 tracking-wider">Estado de Bitácora</h3>
-            <span className={`text-[10px] font-bold ${evaluation ? 'text-green-400' : 'text-orange-400'}`}>
+          <div className="glass p-5 bg-white/5 border border-white/10 flex flex-col justify-center gap-1.5">
+            <h3 className="text-xs font-black uppercase text-slate-300 tracking-widest">Estado de Bitácora</h3>
+            <span className={`text-[11px] font-black tracking-widest ${evaluation ? 'text-green-400' : 'text-orange-400'}`}>
               {evaluation ? `COMPLETADA - NOTA: ${evaluation.score}` : 'PENDIENTE DE EVALUACIÓN'}
             </span>
           </div>
         </div>
 
       {/* Activity Selection Hub - Prominent and High Contrast */}
-      <section className="relative z-10 glass !bg-black/60 p-6 border-2 border-cyan-500/30">
-        <div className="flex flex-col items-center gap-6">
+      <section className="relative z-10 glass !bg-black/60 p-8 border-2 border-cyan-500/30">
+        <div className="flex flex-col items-center gap-8">
           <div className="text-center">
-            <h2 className="text-xs font-black uppercase tracking-[0.4em] text-cyan-400">Ruta de Formación Técnica</h2>
-            <p className="text-[10px] text-slate-300 mt-1 uppercase">Selecciona un módulo para forjar tu competencia</p>
+            <h2 className="text-sm font-black uppercase tracking-[0.5em] text-cyan-400">
+              {a11y.simpleLanguage ? 'TUS ACTIVIDADES' : 'Ruta de Formación Técnica'}
+            </h2>
+            <p className="text-xs text-slate-300 mt-2 uppercase tracking-widest">
+              {a11y.simpleLanguage ? 'Elige lo que quieres hacer hoy' : 'Selecciona un módulo para forjar tu competencia'}
+            </p>
           </div>
           
-          <nav className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 w-full">
+          <nav className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6 w-full">
             {ACTIVITIES.map((act, idx) => {
               const Icon = act.icon;
               const isActive = activeTab === act.id;
@@ -735,21 +874,21 @@ export default function App() {
                     setActiveTab(act.id);
                     toast.success(`Entrando a: ${act.name}`, { duration: 1000 });
                   }}
-                  className={`flex flex-col items-center justify-center gap-3 p-4 rounded-2xl transition-all border relative overflow-hidden ${
+                  className={`flex flex-col items-center justify-center gap-4 p-5 rounded-2xl transition-all border relative overflow-hidden ${
                     isActive 
-                    ? 'bg-cyan-500 border-white/40 shadow-[0_0_30px_rgba(6,182,212,0.5)] scale-105 z-10' 
+                    ? 'bg-cyan-500 border-white/40 shadow-[0_0_40px_rgba(6,182,212,0.6)] scale-105 z-10' 
                     : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300'
                   }`}
                 >
-                  <div className={`p-2 rounded-xl ${isActive ? 'bg-white/20' : 'bg-black/20'}`}>
-                    <Icon size={24} className={isActive ? 'text-white' : act.color} />
+                  <div className={`p-3 rounded-2xl ${isActive ? 'bg-white/25' : 'bg-black/30'}`}>
+                    <Icon size={28} className={isActive ? 'text-white' : act.color} />
                   </div>
                   
                   <div className="text-center">
-                    <span className={`block text-[10px] font-black uppercase leading-tight ${isActive ? 'text-white' : 'text-white/90'}`}>
+                    <span className={`block text-[11px] font-black uppercase leading-tight tracking-wider ${isActive ? 'text-white' : 'text-white/95'}`}>
                       {act.name}
                     </span>
-                    <span className={`text-[8px] mt-1 block uppercase opacity-80 font-bold ${isActive ? 'text-white' : ''}`}>
+                    <span className={`text-[9px] mt-1.5 block uppercase opacity-90 font-bold tracking-widest ${isActive ? 'text-white' : ''}`}>
                       {act.desc}
                     </span>
                   </div>
@@ -757,12 +896,12 @@ export default function App() {
                   {isActive && (
                     <motion.div 
                       layoutId="active-indicator"
-                      className="absolute inset-0 border-2 border-white/50 rounded-2xl pointer-events-none"
+                      className="absolute inset-0 border-[3px] border-white/50 rounded-2xl pointer-events-none"
                     />
                   )}
                   
                   {/* Step number badge */}
-                  <div className="absolute top-2 right-2 text-[8px] font-black opacity-50">
+                  <div className="absolute top-2 right-3 text-[10px] font-black opacity-40">
                     0{idx + 1}
                   </div>
                 </button>
@@ -776,17 +915,17 @@ export default function App() {
       <section className="grid lg:grid-cols-12 gap-8">
         
         {/* Shared Sidebar: Concept Forge */}
-        <div className="lg:col-span-4 space-y-6">
-          <div className="glass p-6 space-y-6 text-center">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200 border-b border-white/10 pb-2 flex items-center justify-center gap-2">
-              <Layers size={14} className="text-cyan-400" /> FORJA DE CONCEPTOS
+        <div className="lg:col-span-4 space-y-8">
+          <div className="glass p-8 space-y-6 text-center">
+            <h2 className="text-sm font-black uppercase tracking-[0.2em] text-slate-200 border-b border-white/10 pb-4 flex items-center justify-center gap-3">
+              <Layers size={18} className="text-cyan-400" /> FORJA DE CONCEPTOS
             </h2>
-            <button onClick={drawCards} className="clay-button w-full bg-cyan-600 hover:bg-cyan-500 text-xs py-4 flex items-center gap-2 justify-center">
-              <Sparkles size={16} /> ROBAR NUEVAS CARTAS
+            <button onClick={drawCards} className="clay-button w-full bg-cyan-600 hover:bg-cyan-500 flex items-center gap-3 justify-center text-xs py-5">
+              <Sparkles size={18} /> ROBAR NUEVAS CARTAS
             </button>
           </div>
 
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-6">
             <AnimatePresence mode="wait">
               {cards.a && (
                 <motion.div 
@@ -794,23 +933,25 @@ export default function App() {
                   initial={{ x: -20, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
                   exit={{ x: 20, opacity: 0 }}
-                  className={`clay-card p-5 bg-slate-800/50 border-l-4 text-left relative ${user?.usedConcepts?.includes(cards.a.nombre) ? 'border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.2)]' : 'border-cyan-500'}`}
+                  className={`clay-card p-6 bg-slate-800/50 border-l-8 text-left relative shadow-xl ${user?.usedConcepts?.includes(cards.a.nombre) ? 'border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.25)]' : 'border-cyan-500'}`}
                 >
                   <div className="flex justify-between items-start">
                     <div>
-                      <span className="text-[10px] font-bold uppercase text-cyan-400">Mecanica</span>
-                      <h3 className="text-lg font-bold mt-1 text-white flex items-center gap-2">
+                      <span className="text-xs font-black uppercase text-cyan-400 tracking-wider">Mecánica</span>
+                      <h3 className="text-xl font-bold mt-1 text-white flex items-center gap-2">
                         {cards.a.nombre}
                         {user?.usedConcepts?.includes(cards.a.nombre) && (
-                          <span className="text-[8px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full uppercase tracking-widest flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span> Dominado
+                          <span className="text-[10px] bg-green-500/20 text-green-400 px-3 py-1 rounded-full uppercase font-black tracking-widest flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span> Dominado
                           </span>
                         )}
                       </h3>
                     </div>
-                    <Settings className={`${user?.usedConcepts?.includes(cards.a.nombre) ? 'text-green-500/40' : 'text-cyan-500/30'}`} size={20} />
+                    <button onClick={() => speak(cards.a?.descripcion || '')} className="text-slate-400 hover:text-white transition-colors bg-white/5 p-2 rounded-xl border border-white/10">
+                      <Volume2 size={18} />
+                    </button>
                   </div>
-                  <p className="text-xs opacity-90 text-slate-300 leading-relaxed mt-2 italic">{cards.a.descripcion}</p>
+                  <p className="text-sm opacity-90 text-slate-300 leading-relaxed mt-3 italic font-medium">{cards.a.descripcion}</p>
                 </motion.div>
               )}
               {cards.b && (
@@ -820,23 +961,25 @@ export default function App() {
                   animate={{ x: 0, opacity: 1 }}
                   exit={{ x: 20, opacity: 0 }}
                   transition={{ delay: 0.1 }}
-                  className={`clay-card p-5 bg-slate-800/50 border-l-4 text-left relative ${user?.usedConcepts?.includes(cards.b.nombre) ? 'border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.2)]' : 'border-orange-500'}`}
+                  className={`clay-card p-6 bg-slate-800/50 border-l-8 text-left relative shadow-xl ${user?.usedConcepts?.includes(cards.b.nombre) ? 'border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.25)]' : 'border-orange-500'}`}
                 >
                   <div className="flex justify-between items-start">
                     <div>
-                      <span className="text-[10px] font-bold uppercase text-orange-400">Simbolismo</span>
-                      <h3 className="text-lg font-bold mt-1 text-white flex items-center gap-2">
+                      <span className="text-xs font-black uppercase text-orange-400 tracking-wider">Simbolismo</span>
+                      <h3 className="text-xl font-bold mt-1 text-white flex items-center gap-2">
                         {cards.b.nombre}
                         {user?.usedConcepts?.includes(cards.b.nombre) && (
-                          <span className="text-[8px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full uppercase tracking-widest flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span> Dominado
+                          <span className="text-[10px] bg-green-500/20 text-green-400 px-3 py-1 rounded-full uppercase font-black tracking-widest flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span> Dominado
                           </span>
                         )}
                       </h3>
                     </div>
-                    <BookOpen className={`${user?.usedConcepts?.includes(cards.b.nombre) ? 'text-green-500/40' : 'text-orange-500/30'}`} size={20} />
+                    <button onClick={() => speak(cards.b?.descripcion || '')} className="text-slate-400 hover:text-white transition-colors bg-white/5 p-2 rounded-xl border border-white/10">
+                      <Volume2 size={18} />
+                    </button>
                   </div>
-                  <p className="text-xs opacity-90 text-slate-300 leading-relaxed mt-2 italic">{cards.b.descripcion}</p>
+                  <p className="text-sm opacity-90 text-slate-300 leading-relaxed mt-3 italic font-medium">{cards.b.descripcion}</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -855,113 +998,120 @@ export default function App() {
                 className="glass p-6 h-full flex flex-col gap-6"
               >
                 <div className="flex justify-between items-center">
-                  <h2 className="text-xs font-black text-slate-200 uppercase tracking-wider border-b border-white/10 pb-2 flex-1">
-                    ACTIVIDAD 1: BITÁCORA CRÍTICA
+                  <h2 className="text-sm font-black text-slate-200 uppercase tracking-widest border-b border-white/10 pb-3 flex-1">
+                    {a11y.simpleLanguage ? 'TU ANÁLISIS' : 'ACTIVIDAD 1: BITÁCORA CRÍTICA'}
                   </h2>
-                  <div className="text-right ml-4">
-                    <span className={`text-[10px] font-mono bg-black/30 px-3 py-1 rounded-full border border-white/10 ${wordCount >= 60 ? 'text-green-400' : 'text-red-400 font-bold shadow-[0_0_8px_rgba(248,113,113,0.3)]'}`}>
+                  <div className="text-right ml-6">
+                    <span className={`text-xs font-mono bg-black/40 px-4 py-1.5 rounded-full border border-white/10 ${wordCount >= 60 ? 'text-green-400' : 'text-red-400 font-bold shadow-[0_0_12px_rgba(248,113,113,0.3)]'}`}>
                       PALABRAS: {wordCount} / 60
                     </span>
                   </div>
                 </div>
 
                 {/* --- PROGRESS STEPPER --- */}
-                <div className="flex items-center w-full mt-2 mb-8 px-4">
+                <div className="flex items-center w-full mt-4 mb-12 px-6">
                   {/* Step 1 */}
-                  <div className="flex flex-col items-center relative w-10">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all z-10 ${
-                      !!cards.a && !!cards.b ? 'bg-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.5)]' : 'bg-cyan-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.5)]'
+                  <div className="flex flex-col items-center relative w-12">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all z-10 ${
+                      !!cards.a && !!cards.b ? 'bg-green-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.6)]' : 'bg-cyan-500 text-white shadow-[0_0_20px_rgba(6,182,212,0.6)]'
                     }`}>
-                      {!!cards.a && !!cards.b ? <CheckCircle2 size={16} /> : '1'}
+                      {!!cards.a && !!cards.b ? <CheckCircle2 size={20} /> : '1'}
                     </div>
-                    <span className={`absolute top-10 whitespace-nowrap text-[9px] uppercase font-black tracking-widest ${!!cards.a && !!cards.b ? 'text-green-400' : 'text-cyan-400'}`}>Conceptos</span>
+                    <span className={`absolute top-12 whitespace-nowrap text-[10px] uppercase font-black tracking-widest ${!!cards.a && !!cards.b ? 'text-green-400' : 'text-cyan-400'}`}>Conceptos</span>
                   </div>
 
                   {/* Line 1 */}
-                  <div className={`flex-1 h-[2px] mx-2 rounded-full transition-all duration-500 ${!!cards.a && !!cards.b ? 'bg-green-500' : 'bg-white/10'}`} />
+                  <div className={`flex-1 h-[3px] mx-2 rounded-full transition-all duration-500 ${!!cards.a && !!cards.b ? 'bg-green-500' : 'bg-white/10'}`} />
 
                   {/* Step 2 */}
-                  <div className="flex flex-col items-center relative w-10">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all z-10 ${
-                      wordCount >= 60 ? 'bg-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.5)]' : 
-                      (!!cards.a && !!cards.b ? 'bg-cyan-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.5)]' : 'bg-slate-700 text-white/50')
+                  <div className="flex flex-col items-center relative w-12">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all z-10 ${
+                      wordCount >= 60 ? 'bg-green-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.6)]' : 
+                      (!!cards.a && !!cards.b ? 'bg-cyan-500 text-white shadow-[0_0_20px_rgba(6,182,212,0.6)]' : 'bg-slate-700 text-white/50')
                     }`}>
-                      {wordCount >= 60 ? <CheckCircle2 size={16} /> : '2'}
+                      {wordCount >= 60 ? <CheckCircle2 size={20} /> : '2'}
                     </div>
-                    <span className={`absolute top-10 whitespace-nowrap text-[9px] uppercase font-black tracking-widest ${
+                    <span className={`absolute top-12 whitespace-nowrap text-[10px] uppercase font-black tracking-widest ${
                       wordCount >= 60 ? 'text-green-400' : 
                       (!!cards.a && !!cards.b ? 'text-cyan-400' : 'text-slate-400')
                     }`}>Análisis</span>
                   </div>
 
                   {/* Line 2 */}
-                  <div className={`flex-1 h-[2px] mx-2 rounded-full transition-all duration-500 ${wordCount >= 60 ? 'bg-green-500' : 'bg-white/10'}`} />
+                  <div className={`flex-1 h-[3px] mx-2 rounded-full transition-all duration-500 ${wordCount >= 60 ? 'bg-green-500' : 'bg-white/10'}`} />
 
                   {/* Step 3 */}
-                  <div className="flex flex-col items-center relative w-10">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all z-10 ${
-                      !!evaluation ? 'bg-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.5)]' : 
-                      (wordCount >= 60 ? 'bg-cyan-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.5)]' : 'bg-slate-700 text-white/50')
+                  <div className="flex flex-col items-center relative w-12">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all z-10 ${
+                      !!evaluation ? 'bg-green-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.6)]' : 
+                      (wordCount >= 60 ? 'bg-cyan-500 text-white shadow-[0_0_20px_rgba(6,182,212,0.6)]' : 'bg-slate-700 text-white/50')
                     }`}>
-                      {!!evaluation ? <CheckCircle2 size={16} /> : '3'}
+                      {!!evaluation ? <CheckCircle2 size={20} /> : '3'}
                     </div>
-                    <span className={`absolute top-10 whitespace-nowrap text-[9px] uppercase font-black tracking-widest ${
+                    <span className={`absolute top-12 whitespace-nowrap text-[10px] uppercase font-black tracking-widest ${
                       !!evaluation ? 'text-green-400' : 
                       (wordCount >= 60 ? 'text-cyan-400' : 'text-slate-400')
                     }`}>Evalúa</span>
                   </div>
                 </div>
                 
-                <p className="text-[11px] opacity-90 italic max-w-lg leading-relaxed border-l-2 border-white/40 pl-3 text-slate-200">
-                  "¿Cómo se protege el bienestar humano frente a la eficiencia de la máquina? Asume tu responsabilidad social como futuro técnico combinando ambos conceptos."
-                </p>
+                <div className="flex gap-4 items-start p-4 bg-cyan-500/5 rounded-xl border border-cyan-500/10">
+                  <button onClick={() => speak("¿Cómo se protege el bienestar humano frente a la eficiencia de la máquina? Asume tu responsabilidad social como futuro técnico combinando ambos conceptos.")} className="mt-1 h-fit text-cyan-400 hover:text-cyan-300 p-2.5 bg-cyan-500/10 rounded-xl border border-cyan-500/20 shadow-inner">
+                    <Volume2 size={20} />
+                  </button>
+                  <p className="text-sm opacity-90 italic max-w-2xl leading-relaxed font-medium text-slate-200">
+                    "¿Cómo se protege el bienestar humano frente a la eficiencia de la máquina? Asume tu responsabilidad social como futuro técnico combinando ambos conceptos."
+                  </p>
+                </div>
 
                 <textarea 
                   value={essay}
                   onChange={(e) => setEssay(e.target.value)}
                   placeholder="Escribe aquí tu análisis..." 
-                  className="flex-1 clay-input text-sm leading-relaxed min-h-[300px] resize-none"
+                  className="flex-1 clay-input text-base leading-relaxed min-h-[350px] resize-none p-6"
                 />
 
                 {wordCount < 60 && (
                   <div className="text-center">
-                    <p className="inline-block text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-3 py-1 rounded-full uppercase tracking-wider font-bold animate-pulse">
+                    <p className="inline-block text-xs text-red-100 bg-red-600/20 border border-red-500/30 px-6 py-2 rounded-full uppercase tracking-widest font-black animate-pulse shadow-lg">
                       Faltan {60 - wordCount} palabras para habilitar la evaluación
                     </p>
                   </div>
                 )}
 
-                <div className="flex gap-4">
+                <div className="flex gap-6">
                   <button 
                     onClick={evaluate} 
                     disabled={isEvaluating} 
-                    className={`flex-1 clay-button text-xs py-4 transition-all ${
+                    className={`flex-1 clay-button text-sm py-5 transition-all shadow-xl ${
                       isEvaluating ? 'bg-slate-700' : 
-                      (wordCount >= 60 && cards.a && cards.b) ? 'bg-green-600 active:scale-95 hover:bg-green-500' : 'bg-slate-600 opacity-80 cursor-pointer'
+                      (wordCount >= 60 && cards.a && cards.b) ? 'bg-green-600 active:scale-95 hover:bg-green-500' : 'bg-slate-700 opacity-50'
                     }`}
                   >
                     {isEvaluating ? 'ANALIZANDO BITÁCORA...' : 'EVALUAR TEXTO'}
                   </button>
-                  <button onClick={exportPDF} disabled={!evaluation} className="flex-1 clay-button bg-slate-700 text-xs py-4">PDF</button>
+                  <button onClick={exportPDF} disabled={!evaluation} className="flex-1 clay-button bg-slate-800 text-sm py-5 border border-white/5">EXPORTAR PDF</button>
                 </div>
               </motion.div>
             )}
 
             {activeTab === 'quiz' && (
-              <motion.div key="quiz" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass p-8 space-y-8">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-[#f8fafc]">Trivia Baldomero Lillo</h3>
-                  <div className="text-[10px] bg-cyan-500/20 px-3 py-1 rounded-full text-cyan-400 font-bold">
+              <motion.div key="quiz" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass p-10 space-y-10">
+                <div className="flex justify-between items-center border-b border-white/10 pb-6">
+                  <h3 className="text-lg font-black uppercase tracking-widest text-white">Trivia Baldomero Lillo</h3>
+                  <div className="text-xs bg-cyan-500/20 px-4 py-2 rounded-full text-cyan-400 font-black tracking-widest border border-cyan-500/30 shadow-lg">
                     PROGRESO: {answeredQuiz.length} / {QUIZ_QUESTIONS.length}
                   </div>
                 </div>
-                <div className="space-y-6">
+                <div className="space-y-10 pb-6">
                   {QUIZ_QUESTIONS.map((q, i) => {
                     const isDone = answeredQuiz.includes(i);
                     return (
-                      <div key={i} className={`space-y-3 p-4 rounded-xl transition-opacity ${isDone ? 'opacity-50 grayscale' : 'opacity-100'}`}>
-                        <p className="text-xs font-bold text-slate-200">{i+1}. {q.q}</p>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div key={i} className={`space-y-6 p-6 rounded-2xl transition-all border ${isDone ? 'opacity-40 grayscale bg-white/5 border-transparent' : 'bg-white/[0.03] border-white/5 shadow-xl'}`}>
+                        <p className="text-lg font-bold text-white leading-relaxed flex gap-4">
+                          <span className="text-cyan-500 font-black">0{i+1}.</span> {q.q}
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                           {q.options.map((opt, oi) => (
                             <button 
                               key={oi} 
@@ -979,15 +1129,15 @@ export default function App() {
                                   }
                                 } else {
                                   toast.error(
-                                    <div className="flex flex-col gap-1">
-                                      <span className="font-bold">Incorrecto. La respuesta correcta es '{q.options[q.correct]}'.</span>
-                                      <span className="text-xs opacity-90 leading-relaxed font-normal">{q.feedback}</span>
+                                    <div className="flex flex-col gap-2 p-1">
+                                      <span className="font-bold text-base">Incorrecto. La respuesta correcta es '{q.options[q.correct]}'.</span>
+                                      <span className="text-sm opacity-90 leading-relaxed font-medium">{q.feedback}</span>
                                     </div>,
                                     { duration: 8000 }
                                   );
                                 }
                               }}
-                              className={`clay-button text-[10px] py-3 ${isDone ? 'bg-black/10' : 'bg-black/30 hover:bg-black/50'}`}
+                              className={`clay-button text-[12px] py-4 transition-all ${isDone ? 'bg-black/20' : 'bg-slate-800/80 hover:bg-slate-700 hover:scale-[1.02]'}`}
                             >
                               {opt}
                             </button>
@@ -1014,22 +1164,22 @@ export default function App() {
               });
 
               return (
-                <motion.div key="empathy" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass p-8 space-y-6">
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-[#f8fafc]">Mapa de Empatía: El Obrero</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                <motion.div key="empathy" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass p-10 space-y-8">
+                  <h3 className="text-lg font-black uppercase tracking-[0.2em] text-white text-center border-b border-white/10 pb-6">Mapa de Empatía: El Obrero</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {EMPATHY_FIELDS.map(field => {
                       const text = empathyMap[field.key as keyof typeof empathyMap];
                       const words = text.trim() ? text.trim().split(/\s+/).length : 0;
                       return (
-                        <div key={field.key} className="space-y-2">
+                        <div key={field.key} className="space-y-3">
                           <div className="flex justify-between items-center">
-                            <label className="text-[10px] font-bold opacity-50 tracking-widest uppercase">{field.label}</label>
-                            <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-full transition-colors ${words >= 10 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400 animate-pulse'}`}>
+                            <label className="text-xs font-black text-slate-400 tracking-widest uppercase">{field.label}</label>
+                            <span className={`text-[11px] font-mono font-black px-3 py-1 rounded-full transition-all border ${words >= 10 ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30 animate-pulse'}`}>
                               {words} / 10 palabras
                             </span>
                           </div>
                           <textarea 
-                            className="w-full clay-input h-32 text-xs leading-relaxed resize-none" 
+                            className="w-full clay-input h-48 text-base leading-[1.6] resize-none focus:bg-white/10" 
                             placeholder={field.placeholder} 
                             value={text}
                             onChange={(e) => setEmpathyMap({...empathyMap, [field.key]: e.target.value})}
@@ -1049,36 +1199,36 @@ export default function App() {
                         toast.info("Perfil actualizado (ya recibiste los puntos)");
                       }
                     }} 
-                    className={`clay-button w-full text-[10px] py-4 transition-all uppercase tracking-wider ${!isAllValid ? 'bg-slate-800 opacity-60 cursor-not-allowed text-red-400 font-bold' : (isEmpathyDone ? 'bg-slate-700' : 'bg-purple-600 hover:scale-[1.02] active:scale-95')}`}
+                    className={`clay-button w-full text-xs py-5 transition-all uppercase tracking-[0.2em] shadow-xl ${!isAllValid ? 'bg-slate-800 opacity-60 cursor-not-allowed text-red-400 font-bold' : (isEmpathyDone ? 'bg-slate-700' : 'bg-indigo-600 hover:scale-[1.01] active:scale-95')}`}
                   >
-                    {!isAllValid ? 'Faltan palabras en algunos campos' : (isEmpathyDone ? 'PERFIL EDITADO Y GUARDADO' : 'GUARDAR PERFIL EMPÁTICO (+50 XP)')}
+                    {!isAllValid ? 'MÍNIMO 10 PALABRAS POR CAMPO' : (isEmpathyDone ? 'PERFIL ACTUALIZADO' : 'GUARDAR PERFIL EMPÁTICO (+50 XP)')}
                   </button>
                 </motion.div>
               );
             })()}
 
             {activeTab === 'debate' && (
-              <motion.div key="debate" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="glass p-8 space-y-8 text-center">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-[#f8fafc]">Dilema de Producción</h3>
-                <p className="text-sm opacity-80 leading-relaxed px-12 italic">
+              <motion.div key="debate" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="glass p-12 space-y-10 text-center">
+                <h3 className="text-lg font-black uppercase tracking-[0.2em] text-white">Dilema de Producción Industrial</h3>
+                <p className="text-2xl opacity-90 leading-[1.6] px-10 italic font-medium font-display text-cyan-100">
                   "Si la máquina garantiza el pan de miles de familias, ¿es justificable que una sola vida se pierda en sus engranajes?"
                 </p>
-                <div className="flex justify-center gap-6">
+                <div className="flex flex-col sm:flex-row justify-center gap-8 pt-4">
                   <button 
                     onClick={() => {
                       if (!isDebateDone) { addXP(30); setIsDebateDone(true); }
                       toast.info("Respuesta ética registrada");
                     }} 
-                    className={`clay-button px-8 py-4 text-[10px] ${isDebateDone ? 'bg-slate-700 opacity-50' : 'bg-red-900/50 hover:bg-red-800'}`}
+                    className={`clay-button px-10 py-5 text-sm tracking-widest ${isDebateDone ? 'bg-slate-800 opacity-60' : 'bg-red-700/80 hover:bg-red-600 shadow-[0_4px_20px_rgba(185,28,28,0.3)] hover:scale-105'}`}
                   >
                     INJUSTIFICABLE
                   </button>
                   <button 
                     onClick={() => {
                       if (!isDebateDone) { addXP(10); setIsDebateDone(true); }
-                      toast.warning("Has priorizado la eficiencia");
+                      toast.warning("Has priorizado la eficiencia de producción");
                     }} 
-                    className={`clay-button px-8 py-4 text-[10px] ${isDebateDone ? 'bg-slate-700 opacity-50' : 'bg-slate-800 hover:bg-slate-700'}`}
+                    className={`clay-button px-10 py-5 text-sm tracking-widest ${isDebateDone ? 'bg-slate-800 opacity-60' : 'bg-slate-700 hover:bg-slate-600 hover:scale-105'}`}
                   >
                     NECESARIO
                   </button>
@@ -1087,25 +1237,27 @@ export default function App() {
             )}
 
             {activeTab === 'glossary' && (
-              <motion.div key="glossary" initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="glass p-8 space-y-6">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-[#f8fafc]">DICCIONARIO DE SÍMBOLOS FORJADOS</h3>
-                <p className="text-[10px] opacity-80 text-slate-300 italic">La integración entre la precisión técnica y la profundidad literaria.</p>
-                <div className="grid md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto pr-2">
+              <motion.div key="glossary" initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="glass p-10 space-y-8">
+                <h3 className="text-lg font-black uppercase tracking-[0.2em] text-white">DICCIONARIO DE SÍMBOLOS FORJADOS</h3>
+                <p className="text-sm opacity-90 text-slate-300 italic font-medium leading-relaxed">
+                  Integración profunda entre precisión técnica y profundidad literaria: El lenguaje que une al hombre con el metal.
+                </p>
+                <div className="grid md:grid-cols-2 gap-6 max-h-[500px] overflow-y-auto pr-4 custom-scrollbar">
                   {MAZO_A.slice(0, 8).map((tech, i) => {
                     const symb = MAZO_B[i % MAZO_B.length];
                     return (
-                      <div key={i} className="flex flex-col gap-3 p-4 bg-white/5 rounded-2xl border border-white/10 group hover:border-cyan-500/50 transition-colors">
-                        <div className="flex items-start gap-4">
+                      <div key={i} className="flex flex-col gap-4 p-6 bg-white/[0.03] rounded-2xl border border-white/5 group hover:border-cyan-500/40 hover:bg-white/[0.06] transition-all shadow-xl">
+                        <div className="flex items-start gap-6">
                           <div className="flex-1">
-                            <span className="text-[8px] font-black text-cyan-400 uppercase tracking-tighter">Materialidad Técnica</span>
-                            <h4 className="text-xs font-bold text-white mb-1">{tech.nombre}</h4>
-                            <p className="text-[9px] opacity-90 text-slate-300 leading-tight">{tech.descripcion}</p>
+                            <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest opacity-80">Mecánica Técnica</span>
+                            <h4 className="text-base font-bold text-white mb-2 mt-1">{tech.nombre}</h4>
+                            <p className="text-xs opacity-90 text-slate-300 leading-relaxed font-medium">{tech.descripcion}</p>
                           </div>
-                          <div className="w-px h-12 bg-white/10" />
+                          <div className="w-px h-full bg-white/10" />
                           <div className="flex-1 text-right">
-                            <span className="text-[8px] font-black text-orange-400 uppercase tracking-tighter">Esencia Simbólica</span>
-                            <h4 className="text-xs font-bold text-white mb-1">{symb.nombre}</h4>
-                            <p className="text-[9px] opacity-90 text-slate-300 leading-tight italic">{symb.descripcion}</p>
+                            <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest opacity-80">Esencia Simbólica</span>
+                            <h4 className="text-base font-bold text-white mb-2 mt-1">{symb.nombre}</h4>
+                            <p className="text-xs opacity-90 text-slate-300 leading-relaxed italic font-medium">{symb.descripcion}</p>
                           </div>
                         </div>
                       </div>
@@ -1117,7 +1269,7 @@ export default function App() {
                     if (!isGlossaryDone) { addXP(20); setIsGlossaryDone(true); }
                     toast.success("Conceptos integrados en tu conocimiento técnico");
                   }} 
-                  className={`clay-button w-full text-xs mt-4 ${isGlossaryDone ? 'bg-slate-700 opacity-50' : 'bg-emerald-600'}`}
+                  className={`clay-button w-full text-sm py-5 shadow-xl transition-all ${isGlossaryDone ? 'bg-slate-700 opacity-60' : 'bg-emerald-600 hover:bg-emerald-500'}`}
                 >
                   {isGlossaryDone ? 'CONOCIMIENTO EXPANDIDO' : 'EXPANDIR CONOCIMIENTO (+20 XP)'}
                 </button>
@@ -1125,38 +1277,40 @@ export default function App() {
             )}
 
             {activeTab === 'checklist' && (
-              <motion.div key="checklist" initial={{ opacity: 0, scale: 1.05 }} animate={{ opacity: 1, scale: 1 }} className="glass p-8 space-y-6">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-[#f8fafc]">Checklist: Ética en el Taller</h3>
-                  <div className="text-[10px] text-cyan-400 font-black">
+              <motion.div key="checklist" initial={{ opacity: 0, scale: 1.05 }} animate={{ opacity: 1, scale: 1 }} className="glass p-10 space-y-10">
+                <div className="flex justify-between items-center border-b border-white/10 pb-6">
+                  <h3 className="text-lg font-black uppercase tracking-[0.2em] text-white">Checklist: Ética en la Industria</h3>
+                  <div className="text-xs text-cyan-400 font-black tracking-widest bg-cyan-500/10 px-4 py-2 rounded-full border border-cyan-500/30">
                     {checklist.length} / 5 COMPLETADOS
                   </div>
                 </div>
-                <div className="grid gap-3">
+                <div className="grid gap-4">
                   {[
-                    "Protección de la dignidad humana sobre la meta.",
-                    "Mantención preventiva como acto de cuidado social.",
-                    "Diálogo abierto sobre riesgos mecánicos.",
-                    "Uso de tecnología para reducir fatiga obrera.",
-                    "Empatía hacia el compañero en el puesto crítico."
+                    "Protección de la dignidad humana sobre la meta de producción.",
+                    "Mantención preventiva constante como acto de cuidado social.",
+                    "Diálogo abierto y honesto sobre riesgos mecánicos críticos.",
+                    "Uso ético de tecnología para reducir fatiga humana y obrera.",
+                    "Empatía radical hacia el compañero en el puesto de trabajo."
                   ].map((val, i) => (
-                    <label key={i} className={`flex items-center gap-4 p-4 clay-card cursor-pointer transition-all ${checklist.includes(i) ? 'bg-cyan-500/20 border-cyan-500/50 opacity-80' : 'bg-slate-800/30'}`}>
-                      <input 
-                        type="checkbox" 
-                        checked={checklist.includes(i)}
-                        className="w-4 h-4 accent-cyan-500 rounded" 
-                        onChange={(e) => {
-                          if(e.target.checked && !checklist.includes(i)) {
-                            setChecklist(prev => [...prev, i]);
-                            addXP(10);
-                            if(checklist.length + 1 === 5) {
-                              addXP(50, 'ETICO');
-                              toast.success("¡Protocolo Ético completado!", { icon: "🛡️" });
+                    <label key={i} className={`flex items-center gap-6 p-6 clay-card cursor-pointer transition-all border-2 ${checklist.includes(i) ? 'bg-cyan-500/10 border-cyan-500/40 opacity-100 shadow-[0_0_25px_rgba(6,182,212,0.15)]' : 'bg-slate-800/30 border-transparent hover:border-white/10'}`}>
+                      <div className="relative flex items-center">
+                        <input 
+                          type="checkbox" 
+                          checked={checklist.includes(i)}
+                          className="w-6 h-6 accent-cyan-500 rounded border-2 border-white/20 bg-transparent transition-all" 
+                          onChange={(e) => {
+                            if(e.target.checked && !checklist.includes(i)) {
+                              setChecklist(prev => [...prev, i]);
+                              addXP(10);
+                              if(checklist.length + 1 === 5) {
+                                addXP(50, 'ETICO');
+                                toast.success("¡Protocolo Ético completado!", { icon: "🛡️" });
+                              }
                             }
-                          }
-                        }}
-                      />
-                      <span className="text-xs">{val}</span>
+                          }}
+                        />
+                      </div>
+                      <span className={`text-base font-medium transition-colors ${checklist.includes(i) ? 'text-cyan-100' : 'text-slate-300'}`}>{val}</span>
                     </label>
                   ))}
                 </div>
@@ -1173,36 +1327,37 @@ export default function App() {
             ref={evaluationRef}
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
-            className="animate-fade-in mb-20"
+            className="animate-fade-in mb-32"
           >
-            <div className="glass p-8 border border-white/20">
-              <div className="flex justify-between items-start mb-6 border-b border-white/10 pb-4">
+            <div className="glass p-12 border-2 border-white/10 shadow-[0_32px_64px_rgba(0,0,0,0.5)]">
+              <div className="flex justify-between items-start mb-10 border-b border-white/10 pb-8">
                 <div>
-                  <h2 className="text-sm font-bold uppercase tracking-widest text-[#f8fafc]">DICTAMEN DE TALLER</h2>
-                  <p className="text-[10px] opacity-50 uppercase mt-1">Resultado de bitácora crítica</p>
+                  <h2 className="text-lg font-black uppercase tracking-[0.2em] text-white">DICTAMEN DE TALLER</h2>
+                  <p className="text-xs opacity-50 uppercase mt-2 tracking-widest font-black">Resultado de bitácora crítica técnica</p>
                 </div>
-                <div className="text-5xl font-black text-cyan-400">{evaluation.score}</div>
+                <div className="text-7xl font-black text-cyan-400 drop-shadow-[0_0_20px_rgba(6,182,212,0.5)]">{evaluation.score}</div>
               </div>
-              <div className="grid md:grid-cols-2 gap-8">
-                <div className="space-y-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center text-green-400 border border-green-500/30"><CheckCircle2 size={16} /></div>
+              <div className="grid md:grid-cols-2 gap-12">
+                <div className="space-y-8">
+                  <div className="flex items-start gap-5">
+                    <div className="w-12 h-12 rounded-2xl bg-green-500/20 flex items-center justify-center text-green-400 border-2 border-green-500/30 shadow-lg"><CheckCircle2 size={24} /></div>
                     <div>
-                      <h4 className="text-[10px] font-black uppercase text-slate-300">Integración Técnica</h4>
-                      <p className="text-xs opacity-90 leading-relaxed">{evaluation.feedbackConcepts}</p>
+                      <h4 className="text-xs font-black uppercase text-slate-300 tracking-widest mb-2">Integración Técnica</h4>
+                      <p className="text-base opacity-95 leading-[1.6] font-medium text-slate-200">{evaluation.feedbackConcepts}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center text-orange-400 border border-orange-500/30"><Heart size={16} /></div>
+                  <div className="flex items-start gap-5">
+                    <div className="w-12 h-12 rounded-2xl bg-orange-500/20 flex items-center justify-center text-orange-400 border-2 border-orange-500/30 shadow-lg"><Heart size={24} /></div>
                     <div>
-                      <h4 className="text-[10px] font-black uppercase text-slate-300">Dimensión Ética</h4>
-                      <p className="text-xs opacity-90 leading-relaxed">{evaluation.feedbackEthics}</p>
+                      <h4 className="text-xs font-black uppercase text-slate-300 tracking-widest mb-2">Dimensión Ética</h4>
+                      <p className="text-base opacity-95 leading-[1.6] font-medium text-slate-200">{evaluation.feedbackEthics}</p>
                     </div>
                   </div>
                 </div>
-                <div className="bg-white/5 rounded-2xl p-6 border border-white/10 flex flex-col justify-center items-center text-center">
-                  <Quote className="text-white/10 mb-4 rotate-180" size={24} />
-                  <p className="text-xs opacity-90 italic leading-relaxed">
+                <div className="bg-white/[0.03] rounded-[32px] p-10 border border-white/5 flex flex-col justify-center items-center text-center relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent" />
+                  <Quote className="text-cyan-500/20 mb-6 rotate-180 transition-transform group-hover:scale-110" size={48} />
+                  <p className="text-lg opacity-90 italic leading-relaxed font-display text-slate-300">
                     "Tu responsabilidad como técnico no termina en el engranaje, comienza en el corazón de quien lo opera."
                   </p>
                 </div>
@@ -1256,8 +1411,9 @@ export default function App() {
         </div>
       </div>
 
-      <footer className="h-12 flex items-center justify-center bg-black/40 text-[10px] opacity-80 text-slate-300 uppercase tracking-widest fixed bottom-0 left-0 w-full z-50">
-        Creado por: Christian Núñez, Asesor Pedagógico, Programa PACE-UDA, 2026.
+      <footer className="h-16 flex flex-col items-center justify-center bg-black/80 text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em] fixed bottom-0 left-0 w-full z-50 border-t border-white/5 backdrop-blur-xl">
+        <span>Bitácora Crítica Industrial 2026</span>
+        <span className="text-[9px] opacity-50 mt-1">Christian Núñez, Asesor Pedagógico, Programa PACE-UDA.</span>
       </footer>
     </div>
   );
