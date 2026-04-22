@@ -426,32 +426,42 @@ export default function App() {
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="clay-card w-full max-w-lg p-8 space-y-6 text-center"
+          className="clay-card w-full max-w-lg p-10 space-y-8 text-center bg-slate-800/40 border border-white/10 backdrop-blur-md"
         >
-            <h2 className="text-4xl font-black text-slate-800 tracking-tight">¡Bienvenido al Taller!</h2>
-          <p className="text-lg text-slate-600 leading-relaxed">Para comenzar tu bitácora, ingresa tus datos:</p>
+          <div className="space-y-3">
+            <h2 className="text-4xl font-black text-white tracking-tight drop-shadow-sm">¡Bienvenido al Taller!</h2>
+            <p className="text-xl text-slate-300 leading-relaxed">Para comenzar tu bitácora, ingresa tus datos:</p>
+          </div>
+          
           <input 
             type="text" 
             value={regName}
             onChange={(e) => setRegName(e.target.value)}
             placeholder="Tu nombre artístico o técnico" 
-            className="w-full clay-input"
+            className="w-full clay-input !bg-white/5 border-white/10"
           />
-          <div className="space-y-4">
-            <p className="text-lg font-semibold text-slate-700">Selecciona tu Avatar:</p>
-            <div className="grid grid-cols-3 gap-4">
+          
+          <div className="space-y-6">
+            <p className="text-xl font-bold text-slate-200 tracking-wide">Selecciona tu Avatar:</p>
+            <div className="grid grid-cols-3 gap-6">
               {AVATARS.map((url) => (
-                <img 
+                <motion.img 
                   key={url}
                   src={url} 
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
                   onClick={() => setTempAvatar(url)}
-                  className={`cursor-pointer w-16 h-16 mx-auto rounded-full bg-slate-100 p-1 transition-all ${tempAvatar === url ? 'ring-4 ring-blue-500 scale-110' : 'opacity-70 hover:opacity-100'}`}
+                  className={`cursor-pointer w-20 h-20 mx-auto rounded-full bg-white/10 p-1.5 transition-all shadow-xl ${tempAvatar === url ? 'ring-4 ring-cyan-500 bg-cyan-500/20 scale-110 shadow-cyan-500/20' : 'opacity-60 hover:opacity-100 hover:bg-white/20'}`}
                   alt="avatar option"
                 />
               ))}
             </div>
           </div>
-          <button onClick={handleRegister} className="w-full clay-button bg-blue-600 text-white text-xl">
+          
+          <button 
+            onClick={handleRegister} 
+            className="w-full clay-button bg-cyan-600 hover:bg-cyan-500 text-white text-xl py-5 shadow-2xl transition-all"
+          >
             Iniciar Experiencia
           </button>
         </motion.div>
